@@ -1,0 +1,12 @@
+import express from 'express';
+import * as ApplicationController from '../controller/application.controller.js';
+import { requireAuth } from "../utils/auth.js";
+const router = express.Router();
+router.post("/save", requireAuth, ApplicationController.save);
+router.get("/fetch", requireAuth, ApplicationController.fetch);
+router.get("/fetch-mine", requireAuth, ApplicationController.fetchMine);
+router.delete("/delete", requireAuth, ApplicationController.deleteApplication);
+router.patch("/update", requireAuth, ApplicationController.update);
+router.patch("/update-payload", requireAuth, ApplicationController.updatePayload);
+router.post("/reset-secret", requireAuth, ApplicationController.resetSecret);
+export default router;

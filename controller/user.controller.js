@@ -1,0 +1,313 @@
+import "../module/connection.js";
+
+import UserSchemaModule from "../module/user.module.js";
+
+import rs from 'randomstring'
+
+import jwt from 'jsonwebtoken';
+
+import sendMail from "../nodemailer/mailer.js";
+
+import bcrypt from 'bcrypt';
+
+export const googleLogin = async (req, res) => {
+    try {
+
+        const { idToken } = req.body;
+        if (!idToken) return res.status(400).json({ status: false, error: "idToken required" });
+
+        const resp = await globalThis.fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
+        if (!resp.ok) return res.status(401).json({ status: false, error: "invalid_google_token" });
+
+        const info = await resp.json();
+
+        const aud = info.aud || "";
+        const clientId = process.env.GOOGLE_CLIENT_ID || "";
+        if (clientId && aud !== clientId) return res.status(401).json({ status: false, error: "aud_mismatch" });
+
+        const email = info.email || "";
+        const name = info.name || (email ? email.split("@")[0] : "user");
+        if (!email) return res.status(400).json({ status: false, error: "email_missing" });
+
+        let user = await UserSchemaModule.findOne({ email });
+        if (!user) {
+
+            const users = await UserSchemaModule.find();
+            const _id = users.length === 0 ? 1 : users[users.length - 1]._id + 1;
+
+            const saltRounds = 10;
+
+            const hashedPassword = await bcrypt.hash(rs.generate(12), saltRounds);
+
+            user = await UserSchemaModule.create({
+                _id,
+                username: name,
+                email,
+                password: hashedPassword,
+                plan: "Free",
+                status: 1,
+                info: new Date(),
+                verifiedAt: new Date(),
+                verificationToken: ""
+            });
+        } else if (user.status !== 1) {
+
+            user.status = 1;
+            user.verifiedAt = new Date();
+            await user.save();
+        }
+
+        const payload = { email: user.email, id: user._id, plan: user.plan };
+
+        const key = process.env.JWT_SECRET || "dev_secret";
+
+        const token = jwt.sign(payload, key, { expiresIn: "15m" });
+
+        const refreshToken = rs.generate(40);
+
+        await UserSchemaModule.updateOne({ _id: user._id }, { $set: { refreshToken } });
+
+        return res.status(200).json({ status: true, token, refreshToken, info: user });
+    } catch (error) {
+        return res.status(500).json({ status: false, error: error.message });
+    }
+};
+
+export const save = async (req, res) => {
+    try {
+        const users = await UserSchemaModule.find();
+        const l = users.length;
+        const _id = l === 0 ? 1 : users[l - 1]._id + 1;
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
+        const verificationToken = rs.generate(48);
+        const userDetails = { ...req.body, password: hashedPassword, _id, role: "user", status: 0, info: new Date(), plan: req.body.plan || "Free", verificationToken };
+        await UserSchemaModule.create(userDetails);
+        const base = process.env.APP_BASE_URL || "http://localhost:3001";
+        const verifyLink = `${base}/user/verify?email=${encodeURIComponent(req.body.email)}&token=${verificationToken}`;
+        sendMail(req.body.email, verifyLink);
+        res.status(200).json({ status: true, verifyLink });
+
+    } catch (err) {
+        res.status(500).json({ status: false, error: err.message });
+    }
+};
+
+export const login = async (req, res) => {
+    const { email, password } = req.body;
+    const user = await UserSchemaModule.findOne({ email, status: 1 });
+    if (user) {
+        const ok = await bcrypt.compare(password, user.password);
+        if (!ok) {
+            return res.status(404).json({ "status": false });
+        }
+        const payload = { email: user.email, id: user._id, plan: user.plan };
+        const key = process.env.JWT_SECRET || "dev_secret";
+        const token = jwt.sign(payload, key, { expiresIn: "15m" });
+        const refreshToken = rs.generate(40);
+        await UserSchemaModule.updateOne({ _id: user._id }, { $set: { refreshToken } });
+        res.status(200).json({ "status": true, "token": token, "refreshToken": refreshToken, "info": user })
+    } else {
+        res.status(404).json({ "status": false });
+    }
+}
+
+export const verify = async (req, res) => {
+    try {
+        const { email, token } = req.query;
+        if (!email || !token) {
+            return res.status(400).send("Invalid verification link");
+        }
+        const user = await UserSchemaModule.findOne({ email, verificationToken: token, status: 0 });
+        if (!user) {
+            return res.status(404).send("Verification failed or already verified");
+        }
+        user.status = 1;
+        user.verifiedAt = new Date();
+        user.verificationToken = "";
+        await user.save();
+        res.status(200).send("Email verified. You can now login.");
+    } catch (error) {
+        res.status(500).send("Internal server error");
+    }
+    
+}
+
+export const fetch = async (req, res) => {
+    var condition_obj = req.query.condition_obj;
+    if (condition_obj != undefined) {
+        condition_obj = JSON.parse(condition_obj)
+    }
+    else
+        condition_obj = {}
+    var userList = await UserSchemaModule.find(condition_obj);
+    if (userList.length != 0) {
+        res.status(200).json({ "status": true, "info": userList })
+    }
+    else
+        res.status(404).json({ "status": false });
+
+}
+
+export const deleteUser = async (req, res) => {
+    try {
+        if (!req.body || typeof req.body.condition_obj !== "string") {
+            return res.status(400).json({ "status": false, "message": "condition_obj required" });
+        }
+        let condition;
+        try { condition = JSON.parse(req.body.condition_obj); } catch { return res.status(400).json({ "status": false, "message": "Invalid condition_obj" }); }
+        let userDetails = await UserSchemaModule.findOne(condition);
+
+        if (userDetails) {
+            let user = await UserSchemaModule.deleteOne(condition);
+            {
+                if (user)
+                    res.status(200).json({ "status": true })
+                else
+                    res.status(404).json({ "status": false })
+            }
+        }
+        else
+            res.status(404).json({ "message": "user not found" })
+    }
+    catch (error) {
+        res.status(500).json({ "status": false });
+    }
+}
+
+export const update = async (req, res) => {
+    try {
+        if (!req.body || typeof req.body.condition_obj !== "string" || typeof req.body.content_obj !== "string") {
+            return res.status(400).json({ "status": false, "Message": "condition_obj and content_obj required" });
+        }
+        let condition, content;
+        try { condition = JSON.parse(req.body.condition_obj); } catch { return res.status(400).json({ "status": false, "Message": "Invalid condition_obj" }); }
+        try { content = JSON.parse(req.body.content_obj); } catch { return res.status(400).json({ "status": false, "Message": "Invalid content_obj" }); }
+        let userDetails = await UserSchemaModule.find(condition);
+        if (userDetails) {
+            let user = await UserSchemaModule.updateMany(condition, { $set: content });
+            if (user)
+                res.status(200).json({ "status": true, "Message": "Update Successfully..." });
+            else
+                res.status(404).json({ "Message": "user not found" })
+        }
+        else
+            res.status(400).json({ "status": false, "Message": "userDetails not found" });
+    }
+    catch (error) {
+        res.status(500).json({ "status": false });
+    }
+}
+
+export const refresh = async (req, res) => {
+    try {
+        const { email, refreshToken } = req.body;
+        const user = await UserSchemaModule.findOne({ email, refreshToken, status: 1 });
+        if (!user) return res.status(401).json({ status: false });
+        const key = process.env.JWT_SECRET || "dev_secret";
+        const payload = { email: user.email, id: user._id, plan: user.plan };
+        const token = jwt.sign(payload, key, { expiresIn: "15m" });
+        res.status(200).json({ status: true, token });
+    } catch (error) {
+        res.status(500).json({ status: false });
+    }
+}
+
+export const resendVerify = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await UserSchemaModule.findOne({ email });
+        if (!user) return res.status(404).json({ status: false });
+        if (user.status === 1) return res.status(200).json({ status: true, message: "Already verified" });
+        let token = user.verificationToken;
+        if (!token || token.length < 10) {
+            token = rs.generate(48);
+            user.verificationToken = token;
+            await user.save();
+        }
+        const base = process.env.APP_BASE_URL || "http://localhost:3001";
+        const verifyLink = `${base}/user/verify?email=${encodeURIComponent(email)}&token=${token}`;
+        sendMail(email, verifyLink, "verify");
+        res.status(200).json({ status: true, verifyLink });
+    } catch (error) {
+        res.status(500).json({ status: false });
+    }
+}
+
+export const googleClient = async (req, res) => {
+    try {
+        const clientId = process.env.GOOGLE_CLIENT_ID || "";
+        res.status(200).json({ status: true, clientId });
+    } catch (error) {
+        res.status(500).json({ status: false });
+    }
+}
+
+export const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ status: false, message: "email required" });
+        const user = await UserSchemaModule.findOne({ email });
+        const token = rs.generate(48);
+        const expires = new Date(Date.now() + 15 * 60 * 1000);
+        if (user) {
+            user.resetToken = token;
+            user.resetExpires = expires;
+            await user.save();
+            const base = process.env.UI_BASE_URL || "http://localhost:5173";
+            const link = `${base}/reset-password?email=${encodeURIComponent(email)}&token=${token}`;
+            sendMail(email, link, "reset");
+        }
+        return res.status(200).json({ status: true });
+    } catch (error) {
+        return res.status(500).json({ status: false, message: error.message });
+    }
+};
+
+export const resetPassword = async (req, res) => {
+    try {
+        const { email, token, password } = req.body;
+        if (!email || !token || !password) return res.status(400).json({ status: false, message: "email, token and password required" });
+        const user = await UserSchemaModule.findOne({ email, resetToken: token });
+        if (!user || !user.resetExpires || new Date() > new Date(user.resetExpires)) {
+            return res.status(400).json({ status: false, message: "invalid_or_expired_token" });
+        }
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        user.password = hashedPassword;
+        user.resetToken = "";
+        user.resetExpires = null;
+        user.refreshToken = "";
+        await user.save();
+        return res.status(200).json({ status: true });
+    } catch (error) {
+        return res.status(500).json({ status: false });
+    }
+};
+
+export const logout = async (req, res) => {
+    try {
+        const userId = Number(req.user?.id);
+        if (!userId) return res.status(401).json({ status: false });
+        const user = await UserSchemaModule.findOne({ _id: userId });
+        if (!user) return res.status(404).json({ status: false });
+        user.refreshToken = "";
+        await user.save();
+        return res.status(200).json({ status: true });
+    } catch (error) {
+        return res.status(500).json({ status: false });
+    }
+};
+
+export const mailTest = async (req, res) => {
+    try {
+        const { to } = req.body;
+        if (!to) return res.status(400).json({ status: false, message: "to required" });
+        const ui = process.env.UI_BASE_URL || "http://localhost:5173";
+        const link = `${ui}/login`;
+        sendMail(to, link, "verify");
+        return res.status(200).json({ status: true });
+    } catch (error) {
+        return res.status(500).json({ status: false, message: error.message });
+    }
+};
