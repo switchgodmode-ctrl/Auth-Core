@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { forgotPassword, updateProfileAvatar } from "../api.js";
-import Card from "../components/ui/Card.jsx";
-import Input from "../components/ui/Input.jsx";
-import Button from "../components/ui/Button.jsx";
+import { forgotPassword, updateProfile, changePassword } from "../api";
+import Card from "../components/ui/Card";
+import Input from "../components/ui/Input";
+import Button from "../components/ui/Button";
 
 export default function Settings() {
+  const [user, setUser] = useState(null);
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -21,11 +23,42 @@ export default function Settings() {
   }
 
   useEffect(() => {
-    const e = localStorage.getItem("email");
-    if (e) setEmail(e);
-    const a = localStorage.getItem("userAvatar");
-    if (a) setAvatarPreview(a);
+    const savedUser = JSON.parse(localStorage.getItem("user") || "{}");
+    if (savedUser) {
+      setUser(savedUser);
+      setUsername(savedUser.username || "");
+      setEmail(savedUser.email || "");
+      if (savedUser.avatar) {
+        setAvatarPreview(savedUser.avatar.startsWith('http') ? savedUser.avatar : `${import.meta.env.VITE_API_URL}${savedUser.avatar}`);
+      }
+    }
   }, []);
+
+  async function handleUpdateProfile(e) {
+    if (e) e.preventDefault();
+    const formData = new FormData();
+    if (username) formData.append("username", username);
+    if (fileInputRef.current?.files[0]) {
+      formData.append("avatar", fileInputRef.current.files[0]);
+    }
+
+    try {
+      const res = await updateProfile(formData);
+      if (res.status) {
+        localStorage.setItem("user", JSON.stringify(res.info));
+        setUser(res.info);
+        if (res.info.avatar) {
+            setAvatarPreview(`${import.meta.env.VITE_API_URL}${res.info.avatar}`);
+        }
+        showStatus("Profile updated successfully", "success");
+        window.dispatchEvent(new Event('avatar-updated'));
+      } else {
+        showStatus(res.error || "Update failed", "error");
+      }
+    } catch (err) {
+      showStatus("Network error", "error");
+    }
+  }
 
   async function handleAvatarSelect(e) {
     const file = e.target.files[0];
@@ -34,29 +67,30 @@ export default function Settings() {
       showStatus("Image must be less than 2MB", "error");
       return;
     }
+    
+    // Preview immediately
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64String = reader.result;
-      setAvatarPreview(base64String);
-      localStorage.setItem("userAvatar", base64String);
-      window.dispatchEvent(new Event('avatar-updated'));
-      
-      if (email) {
-        await updateProfileAvatar(email, base64String);
-      }
-    };
+    reader.onloadend = () => setAvatarPreview(reader.result);
     reader.readAsDataURL(file);
+
+    // Upload immediately
+    handleUpdateProfile();
   }
 
   async function handleUpdatePassword(e) {
     e.preventDefault();
-    if (!email || !oldPassword || !newPassword) return;
-    
-    // Feature mocked for UI since no backend endpoint exists
-    await new Promise(r => setTimeout(r, 600));
-    showStatus("Password updated safely.", "success");
-    setOldPassword("");
-    setNewPassword("");
+    try {
+      const res = await changePassword({ oldPassword, newPassword });
+      if (res.status) {
+        showStatus("Password updated successfully", "success");
+        setOldPassword("");
+        setNewPassword("");
+      } else {
+        showStatus(res.message || "Failed to update password", "error");
+      }
+    } catch (err) {
+      showStatus("Network error", "error");
+    }
   }
 
   async function handleSendReset() {
@@ -79,18 +113,26 @@ export default function Settings() {
         {/* Personal Details Snapshot */}
         <Card title="Account Profile" subtitle="Your primary authcore identification">
           <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px", paddingBottom: "24px", borderBottom: "1px solid var(--border)" }}>
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg, var(--accent), var(--accent2))", display: "grid", placeItems: "center", fontSize: "1.5rem", color: "#fff", fontWeight: "800", overflow: "hidden" }}>
+            <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg, var(--accent), var(--accent2))", display: "grid", placeItems: "center", fontSize: "1.8rem", color: "#fff", fontWeight: "800", overflow: "hidden", border: "2px solid var(--border)" }}>
               {avatarPreview ? (
                 <img src={avatarPreview} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
-                email?.[0]?.toUpperCase() || "A"
+                username?.[0]?.toUpperCase() || email?.[0]?.toUpperCase() || "A"
               )}
             </div>
             <div>
-              <div style={{ fontSize: "1.2rem", fontWeight: "700", color: "var(--text)" }}>Admin User</div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                 <input 
+                    value={username} 
+                    onChange={e => setUsername(e.target.value)} 
+                    onBlur={() => handleUpdateProfile()}
+                    className="settings-username-input"
+                    placeholder="Enter Username"
+                 />
+              </div>
               <div style={{ color: "var(--muted)", marginTop: "4px" }}>{email || "admin@authcore.cloud"}</div>
-              <div style={{ display: "inline-block", padding: "4px 8px", background: "rgba(16, 185, 129, 0.1)", color: "var(--success)", fontSize: "0.7rem", fontWeight: "700", letterSpacing: "0.05em", borderRadius: "100px", marginTop: "8px", textTransform: "uppercase" }}>
-                Active Plan: Pro
+              <div style={{ display: "inline-block", padding: "4px 8px", background: "rgba(99, 102, 241, 0.1)", color: "var(--accent)", fontSize: "0.7rem", fontWeight: "700", letterSpacing: "0.05em", borderRadius: "100px", marginTop: "8px", textTransform: "uppercase" }}>
+                Active Plan: {user?.plan || 'Free'}
               </div>
             </div>
           </div>
@@ -98,9 +140,30 @@ export default function Settings() {
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <input type="file" ref={fileInputRef} accept="image/png, image/jpeg, image/jpg" style={{ display: "none" }} onChange={handleAvatarSelect} />
             <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>Change Avatar</Button>
-            <Button variant="danger" onClick={handleSendReset}>Send Password Reset Email</Button>
+            <Button variant="ghost" onClick={handleSendReset}>Send Password Reset Email</Button>
           </div>
           {resetMsg && <div style={{ marginTop: "16px", color: "var(--success)", fontSize: "0.85rem" }}>{resetMsg}</div>}
+        </Card>
+
+        {/* Referral System */}
+        <Card title="Referral Program" subtitle="Invite friends and get rewards.">
+            <div style={{ background: "var(--surface2)", padding: "20px", borderRadius: "12px", border: "1px dashed var(--border)" }}>
+                <div style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "8px" }}>Your Referral Link</div>
+                <div style={{ display: "flex", gap: "10px" }}>
+                    <code style={{ flex: 1, background: "var(--bg)", padding: "10px", borderRadius: "6px", color: "var(--accent)", fontSize: "0.9rem" }}>
+                        {window.location.origin}/register?ref={user?.referralCode}
+                    </code>
+                    <Button variant="secondary" size="sm" onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/register?ref=${user?.referralCode}`);
+                        showStatus("Link copied to clipboard!", "success");
+                    }}>Copy</Button>
+                </div>
+                {user?.referredBy && (
+                    <div style={{ marginTop: "15px", fontSize: "0.8rem", color: "var(--success)" }}>
+                        ✓ You were referred by another user!
+                    </div>
+                )}
+            </div>
         </Card>
 
         {/* Password Update */}

@@ -17,7 +17,15 @@ export default function Register() {
   const [verifyLink, setVerifyLink] = useState("");
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [clientId, setClientId] = useState("");
+  const [referredBy, setReferredBy] = useState("");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) setReferredBy(ref);
+  }, []);
+
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
@@ -34,7 +42,7 @@ export default function Register() {
     e.preventDefault();
     setError("");
     setMessage("");
-    const resp = await register(username, email, password, plan);
+    const resp = await register(username, email, password, plan, referredBy);
     if (resp.status) {
       setMessage("Registration successful. Please verify your email.");
       if (resp.verifyLink) setVerifyLink(resp.verifyLink);

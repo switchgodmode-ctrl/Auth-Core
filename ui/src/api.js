@@ -54,8 +54,8 @@ export async function login(email, password) {
   return request("/user/login", { method: "POST", body: JSON.stringify({ email, password, status: 1 }) });
 }
 
-export async function register(username, email, password, plan = "Free") {
-  return request("/user/save", { method: "POST", body: JSON.stringify({ username, email, password, plan }) });
+export async function register(username, email, password, plan = "Free", referredBy = "") {
+  return request("/user/save", { method: "POST", body: JSON.stringify({ username, email, password, plan, referredBy }) });
 }
 
 export async function createOrder(userId, amount) {
@@ -189,4 +189,16 @@ export async function refreshToken(email, refreshToken) {
 
 export async function fetchAdminStats() {
   return request("/user/admin/stats", {}, true);
+}
+
+export async function updateProfile(formData) {
+  // Use raw fetch for multipart/form-data
+  const token = localStorage.getItem("token") || "";
+  return fetch(`${API_BASE}/user/update-profile`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: formData
+  }).then(r => r.json());
 }
