@@ -68,7 +68,7 @@ export default function Landing() {
     const token = localStorage.getItem("token") || "";
     if (!email || !token) { navigate("/login"); return; }
     const userId = getUserIdFromToken();
-    const order = await createOrder(Number(userId), 1000);
+    const order = await createOrder(Number(userId), 5000);
     if (!order?.status) { alert(order?.error || "Failed to create order"); return; }
     const ok = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
     if (!ok) { alert("Failed to load Razorpay"); return; }
@@ -143,7 +143,7 @@ export default function Landing() {
                 Start for Free →
               </NavLink>
               <a className="btn-ghost" onClick={startCheckout} style={{ cursor: "pointer" }}>
-                Try Pro — ₹1000/yr
+                Try Pro — ₹50/yr
               </a>
             </motion.div>
 
@@ -279,7 +279,7 @@ export default function Landing() {
             <motion.div className="rt-price-card featured" initial="hidden" whileInView="show" custom={1} viewport={{ once: true }} variants={fadeUp}>
               <div className="rt-price-badge">Most popular</div>
               <div className="rt-price-tier">Pro</div>
-              <div className="rt-price-amount"><sup>₹</sup>1000</div>
+              <div className="rt-price-amount"><sup>₹</sup>50</div>
               <div className="rt-price-cycle">per year · billed annually</div>
               <div className="rt-price-divider" />
               <ul className="rt-price-features">

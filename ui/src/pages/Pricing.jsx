@@ -87,7 +87,8 @@ export default function Pricing() {
         <motion.div className="rt-price-card featured" initial="hidden" animate="show" custom={3} variants={fadeUp}>
           <div className="rt-price-badge">Most Popular</div>
           <div className="rt-price-tier">Pro</div>
-          <div className="rt-price-amount"><sup>₹</sup>1000</div>
+          {/* price update from here */}
+          <div className="rt-price-amount"><sup>₹</sup>50</div>
           <div className="rt-price-cycle">per year · billed annually</div>
           <div className="rt-price-divider" />
           <ul className="rt-price-features">
@@ -97,7 +98,7 @@ export default function Pricing() {
             <li>Advanced fraud analytics</li>
             <li>Priority email support</li>
           </ul>
-          <Button variant="primary" className="w-full" onClick={() => startCheckout(1000, "Pro")} style={{ marginTop: 'auto' }}>Upgrade to Pro</Button>
+          <Button variant="primary" className="w-full" onClick={() => startCheckout(5000, "Pro")} style={{ marginTop: 'auto' }}>Upgrade to Pro</Button>
         </motion.div>
 
         {/* Enterprise */}

@@ -49,7 +49,7 @@ export default function DashboardLayout() {
 
   return (
     <div className="dash-shell">
-      
+
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div className="dash-sidebar-overlay" onClick={() => setSidebarOpen(false)}></div>
@@ -66,43 +66,43 @@ export default function DashboardLayout() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
-        
+
         <nav className="dash-nav" style={{ flex: 1 }}>
           <div className="dash-nav-group">Overview</div>
-          <NavLink to="/dashboard" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "active" : ""}>
+          <NavLink to="/dashboard" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
             Dashboard
           </NavLink>
-          
+
           <div className="dash-nav-group">Core</div>
-          <NavLink to="/applications" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "active" : ""}>
+          <NavLink to="/applications" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
             Applications
           </NavLink>
-          <NavLink to="/licences" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "active" : ""}>
+          <NavLink to="/licences" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
             Licences
           </NavLink>
-          <NavLink to="/runtime" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "active" : ""}>
+          <NavLink to="/runtime" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
             Runtime
           </NavLink>
-          <NavLink to="/webhooks" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "active" : ""}>
+          <NavLink to="/webhooks" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
             Webhooks
           </NavLink>
-          
+
           <div className="dash-nav-group">Account</div>
-          <NavLink to="/payments" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "active" : ""}>
+          <NavLink to="/payments" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
             Billing & Premium
           </NavLink>
-          <NavLink to="/settings" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "active" : ""}>
+          <NavLink to="/settings" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
             Profile Settings
           </NavLink>
         </nav>
-        
+
         <div style={{ padding: '24px', borderTop: '1px solid var(--border)', background: 'var(--surface2)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(99,102,241,0.1)', display: 'grid', placeItems: 'center', color: 'var(--accent)', overflow: 'hidden' }}>
@@ -132,8 +132,8 @@ export default function DashboardLayout() {
               <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
               </span>
-              <input 
-                placeholder="Search resources..." 
+              <input
+                placeholder="Search resources..."
               />
             </div>
           </div>
@@ -143,22 +143,22 @@ export default function DashboardLayout() {
               <div style={{ width: 22, height: 22, borderRadius: '50%', background: brand || 'var(--accent)', border: '1px solid var(--border)', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }} />
               <input type="color" value={brand || "#6366f1"} onChange={onPickColor} style={{ opacity: 0, width: 0, height: 0, padding: 0, border: 'none' }} />
             </label>
-            
+
             <Notifications />
 
-            <button 
+            <button
               onClick={toggleTheme}
               className="dash-theme-btn"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
             </button>
-            
+
             <Button variant="ghost" size="sm" onClick={handleLogout} style={{ padding: '8px 16px' }} className="dash-logout-btn">
               Sign Out
             </Button>
           </div>
         </header>
-        
+
         {/* Scrollable View */}
         <div style={{ height: 'calc(100vh - 73px)', overflowY: 'auto', background: 'var(--bg)', position: 'relative' }}>
           <div style={{ padding: '0 32px' }} className="dash-outlet-container">

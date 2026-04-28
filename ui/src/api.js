@@ -1,9 +1,10 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 function authHeaders() {
   const token = localStorage.getItem("token") || "";
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
+
 function hasToken() {
   const token = localStorage.getItem("token") || "";
   return !!token;
@@ -12,18 +13,27 @@ function hasToken() {
 async function request(path, options = {}, needsAuth = false) {
   const url = `${API_BASE}${path}`;
   const opts = { ...options };
-  opts.headers = { "Content-Type": "application/json", ...(needsAuth ? authHeaders() : {}), ...(options.headers || {}) };
+  opts.headers = {
+    "Content-Type": "application/json",
+    ...(needsAuth ? authHeaders() : {}),
+    ...(options.headers || {})
+  };
+
   let res;
   try {
     res = await fetch(url, opts);
   } catch (e) {
     return { status: false, error: "network_error" };
   }
+
   if (res.status === 401 && needsAuth) {
     const email = localStorage.getItem("email") || "";
     const rt = localStorage.getItem("refreshToken") || "";
     if (email && rt) {
-      const rr = await request("/user/refresh", { method: "POST", body: JSON.stringify({ email, refreshToken: rt }) }, false);
+      const rr = await request("/user/refresh", {
+        method: "POST",
+        body: JSON.stringify({ email, refreshToken: rt })
+      }, false);
       if (rr?.status && rr.token) {
         localStorage.setItem("token", rr.token);
         opts.headers = { ...opts.headers, ...authHeaders() };
@@ -31,6 +41,7 @@ async function request(path, options = {}, needsAuth = false) {
       }
     }
   }
+
   try {
     return await res.json();
   } catch {
@@ -99,10 +110,6 @@ export async function updateApplicationPayload(appId, remotePayload) {
   return request("/application/update-payload", { method: "PATCH", body: JSON.stringify({ appId: Number(appId), remotePayload }) }, true);
 }
 
-// =======================
-// WEBHOOK EXPORTS
-// =======================
-
 export async function createWebhook(appId, url, events) {
   return request("/webhook/create", { method: "POST", body: JSON.stringify({ appId: Number(appId), url, events }) }, true);
 }
@@ -150,9 +157,6 @@ export async function resendVerify(email) {
   return request("/user/resend-verify", { method: "POST", body: JSON.stringify({ email }) });
 }
 
-export async function refreshToken(email, refreshToken) {
-  return request("/user/refresh", { method: "POST", body: JSON.stringify({ email, refreshToken }) });
-}
 export async function googleLogin(idToken) {
   return request("/user/google-login", { method: "POST", body: JSON.stringify({ idToken }) });
 }
@@ -173,4 +177,11 @@ export async function updateProfileAvatar(email, avatarBase64) {
   const condition_obj = JSON.stringify({ email: email });
   const content_obj = JSON.stringify({ avatar: avatarBase64 });
   return request("/user/update", { method: "PATCH", body: JSON.stringify({ condition_obj, content_obj }) }, true);
+}
+
+export async function refreshToken(email, refreshToken) {
+  return request("/user/refresh", {
+    method: "POST",
+    body: JSON.stringify({ email, refreshToken })
+  }, false);
 }

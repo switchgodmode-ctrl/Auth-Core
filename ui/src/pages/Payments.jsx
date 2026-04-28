@@ -32,7 +32,8 @@ export default function Payments() {
   async function submit() {
     setStatus("Creating order...");
     const uid = String(getUserIdFromToken() || "");
-    const amount = billing === "monthly" ? 10000 : 100000;
+    // price update from here 
+    const amount = billing === "monthly" ? 500 : 5000;
     const r = await createOrder(Number(uid), amount);
     if (!r?.status) {
       setStatus(r.error || "Failed to create order");
@@ -140,7 +141,7 @@ export default function Payments() {
               <div style={{ position: "absolute", top: -12, right: 24, background: "var(--accent)", color: "#fff", padding: "4px 12px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", boxShadow: "0 4px 12px rgba(99,102,241,0.4)" }}>Recommended</div>
               
               <div style={{ fontSize: "2.5rem", fontWeight: 800, marginBottom: "24px", color: "var(--text)", display: "flex", alignItems: "baseline", gap: "8px" }}>
-                {billing === "monthly" ? "₹1,000" : "₹10,000"} 
+                {billing === "monthly" ? "₹5" : "₹50"} 
                 <span style={{ fontSize: "1rem", color: "var(--muted)", fontWeight: "500" }}>/{billing}</span>
               </div>
               

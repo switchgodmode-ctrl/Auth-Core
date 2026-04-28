@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { register } from "../api.js";
+import { register, API_BASE } from "../api.js";
 import Card from "../components/ui/Card.jsx";
 import Input from "../components/ui/Input.jsx";
 import Button from "../components/ui/Button.jsx";
@@ -24,7 +24,7 @@ export default function Register() {
     script.async = true;
     script.defer = true;
     document.body.appendChild(script);
-    fetch("http://localhost:3001/user/google-client").then(r => r.json()).then(j => {
+    fetch(`${API_BASE}/user/google-client`).then(r => r.json()).then(j => {
       if (j.status) setClientId(j.clientId || "");
     }).catch(() => {});
     return () => { document.body.removeChild(script); };
@@ -56,7 +56,7 @@ export default function Register() {
         callback: async (response) => {
           try {
             const idToken = response.credential;
-            const r = await fetch("http://localhost:3001/user/google-login", {
+            const r = await fetch(`${API_BASE}/user/google-login`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ idToken })
