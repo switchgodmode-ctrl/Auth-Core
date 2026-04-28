@@ -33,6 +33,8 @@ export default function Login() {
       localStorage.setItem("token", resp.token || "");
       localStorage.setItem("refreshToken", resp.refreshToken || "");
       localStorage.setItem("email", email);
+      localStorage.setItem("role", resp.info?.role || "user");
+      localStorage.setItem("user", JSON.stringify(resp.info || {}));
       navigate("/dashboard");
     } else {
       setError("Invalid credentials");
@@ -61,6 +63,8 @@ export default function Login() {
               localStorage.setItem("token", j.token || "");
               localStorage.setItem("refreshToken", j.refreshToken || "");
               localStorage.setItem("email", j.info?.email || "");
+              localStorage.setItem("role", j.info?.role || "user");
+              localStorage.setItem("user", JSON.stringify(j.info || {}));
               navigate("/dashboard");
             } else {
               setError(j.error || "Google login failed");

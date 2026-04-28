@@ -16,6 +16,7 @@ import Pricing from "./pages/Pricing.jsx";
 import Support from "./pages/Support.jsx";
 import Settings from "./pages/Settings.jsx";
 import Webhooks from "./pages/Webhooks.jsx";
+import AdminDashboard from "./pages/AdminDashboard.jsx";
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="/payments" element={<Payments />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/webhooks" element={<Webhooks />} />
+        <Route path="/admin/dashboard" element={<RequireAuth role="admin"><AdminDashboard /></RequireAuth>} />
       </Route>
     </Routes>
   );

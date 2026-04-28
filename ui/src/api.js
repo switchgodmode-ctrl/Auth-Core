@@ -186,3 +186,7 @@ export async function refreshToken(email, refreshToken) {
     body: JSON.stringify({ email, refreshToken })
   }, false);
 }
+
+export async function fetchAdminStats() {
+  return request("/user/admin/stats", {}, true);
+}
