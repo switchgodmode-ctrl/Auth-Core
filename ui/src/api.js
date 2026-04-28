@@ -202,3 +202,15 @@ export async function updateProfile(formData) {
     body: formData
   }).then(r => r.json());
 }
+
+export async function fetchSessions() {
+  return request("/user/sessions", {}, true);
+}
+
+export async function logoutDevice(sessionId) {
+  return request("/user/logout-device", { method: "POST", body: JSON.stringify({ sessionId }) }, true);
+}
+
+export async function changePassword(payload) {
+  return request("/user/change-password", { method: "POST", body: JSON.stringify(payload) }, true);
+}

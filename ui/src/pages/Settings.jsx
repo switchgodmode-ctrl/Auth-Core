@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { forgotPassword, updateProfile, changePassword } from "../api";
+import { forgotPassword, updateProfile, changePassword, fetchSessions, logoutDevice } from "../api";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 
 export default function Settings() {
   const [user, setUser] = useState(null);
+  const [sessions, setSessions] = useState([]);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [oldPassword, setOldPassword] = useState("");
@@ -32,7 +33,25 @@ export default function Settings() {
         setAvatarPreview(savedUser.avatar.startsWith('http') ? savedUser.avatar : `${import.meta.env.VITE_API_URL}${savedUser.avatar}`);
       }
     }
+    loadSessions();
   }, []);
+
+  const loadSessions = async () => {
+    try {
+      const res = await fetchSessions();
+      if (res.status) setSessions(res.sessions);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleLogoutDevice = async (sid) => {
+    try {
+      const res = await logoutDevice(sid);
+      if (res.status) {
+        showStatus("Device logged out", "success");
+        loadSessions();
+      }
+    } catch (err) { showStatus("Failed to logout device", "error"); }
+  };
 
   async function handleUpdateProfile(e) {
     if (e) e.preventDefault();
@@ -67,13 +86,9 @@ export default function Settings() {
       showStatus("Image must be less than 2MB", "error");
       return;
     }
-    
-    // Preview immediately
     const reader = new FileReader();
     reader.onloadend = () => setAvatarPreview(reader.result);
     reader.readAsDataURL(file);
-
-    // Upload immediately
     handleUpdateProfile();
   }
 
@@ -101,16 +116,16 @@ export default function Settings() {
   }
 
   return (
-    <div style={{ maxWidth: "800px", display: "flex", flexDirection: "column", gap: "24px" }}>
+    <div style={{ maxWidth: "800px", display: "flex", flexDirection: "column", gap: "24px", paddingBottom: "50px" }}>
       <div className="db-page-head">
         <div>
           <h1 className="db-page-title">Profile Settings</h1>
-          <p className="db-page-sub">Manage your account details and security preferences.</p>
+          <p className="db-page-sub">Manage your account details, security and referral rewards.</p>
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "24px" }}>
-        {/* Personal Details Snapshot */}
+        {/* Account Profile */}
         <Card title="Account Profile" subtitle="Your primary authcore identification">
           <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px", paddingBottom: "24px", borderBottom: "1px solid var(--border)" }}>
             <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg, var(--accent), var(--accent2))", display: "grid", placeItems: "center", fontSize: "1.8rem", color: "#fff", fontWeight: "800", overflow: "hidden", border: "2px solid var(--border)" }}>
@@ -128,6 +143,7 @@ export default function Settings() {
                     onBlur={() => handleUpdateProfile()}
                     className="settings-username-input"
                     placeholder="Enter Username"
+                    style={{ background: 'transparent', border: 'none', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text)', outline: 'none' }}
                  />
               </div>
               <div style={{ color: "var(--muted)", marginTop: "4px" }}>{email || "admin@authcore.cloud"}</div>
@@ -149,8 +165,8 @@ export default function Settings() {
         <Card title="Referral Program" subtitle="Invite friends and get rewards.">
             <div style={{ background: "var(--surface2)", padding: "20px", borderRadius: "12px", border: "1px dashed var(--border)" }}>
                 <div style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "8px" }}>Your Referral Link</div>
-                <div style={{ display: "flex", gap: "10px" }}>
-                    <code style={{ flex: 1, background: "var(--bg)", padding: "10px", borderRadius: "6px", color: "var(--accent)", fontSize: "0.9rem" }}>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                    <code style={{ flex: 1, background: "var(--bg)", padding: "10px", borderRadius: "6px", color: "var(--accent)", fontSize: "0.9rem", minWidth: "200px", wordBreak: "break-all" }}>
                         {window.location.origin}/register?ref={user?.referralCode}
                     </code>
                     <Button variant="secondary" size="sm" onClick={() => {
@@ -166,8 +182,29 @@ export default function Settings() {
             </div>
         </Card>
 
+        {/* Sessions & Security */}
+        <Card title="Active Sessions" subtitle="Manage your active logins across different devices.">
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {sessions.length === 0 && <div style={{ color: "var(--muted)", fontSize: "0.9rem" }}>Loading active sessions...</div>}
+                {sessions.map((s, idx) => (
+                    <div key={idx} style={{ background: "var(--surface2)", padding: "16px", borderRadius: "12px", border: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            <div style={{ color: "var(--accent)" }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: "0.9rem", fontWeight: "600", color: "var(--text)" }}>{s.device.split(')')[0].split('(')[1] || 'Unknown Browser'}</div>
+                                <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>IP: {s.ip} • Last active: {new Date(s.lastActive).toLocaleString()}</div>
+                            </div>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => handleLogoutDevice(s._id)}>Logout</Button>
+                    </div>
+                ))}
+            </div>
+        </Card>
+
         {/* Password Update */}
-        <Card title="Change Password" subtitle="Keep your infrastructure credentials secure.">
+        <Card title="Change Password" subtitle="Keep your account credentials secure.">
           <form onSubmit={handleUpdatePassword} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             <Input 
               label="Current Password" type="password" placeholder="Enter current password" required
@@ -188,30 +225,28 @@ export default function Settings() {
           <div style={{ border: "1px solid rgba(239, 68, 68, 0.3)", background: "rgba(239, 68, 68, 0.05)", padding: "20px", borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
             <div>
               <div style={{ fontWeight: "600", color: "var(--text)" }}>Delete Account</div>
-              <div style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: "4px" }}>Permanently delete your account and all associated applications.</div>
+              <div style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: "4px" }}>Permanently delete your account and all data.</div>
             </div>
             <Button variant="danger" onClick={() => setConfirmDialog({
               title: "Delete Account",
-              message: "Are you absolutely sure you want to delete your account? This action is irreversible and all your data will be wiped immediately.",
+              message: "Are you absolutely sure? This action is irreversible.",
               onConfirm: () => { setConfirmDialog(null); showStatus('Feature disabled in demo mode.', 'error'); }
             })}>Delete Account</Button>
           </div>
         </Card>
       </div>
 
-      {/* Toast Notification */}
       <AnimatePresence>
         {status.msg && (
           <motion.div 
             initial={{ opacity: 0, y: -20, x: "-50%" }} animate={{ opacity: 1, y: 0, x: "-50%" }} exit={{ opacity: 0, y: -20, x: "-50%" }}
-            style={{ position: "fixed", top: "24px", left: "50%", zIndex: 1000, padding: "12px 24px", borderRadius: "100px", fontWeight: "600", fontSize: "0.85rem", background: status.type === "error" ? "var(--error, #ef4444)" : status.type === "success" ? "var(--success, #10b981)" : "var(--accent)", color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}
+            style={{ position: "fixed", top: "24px", left: "50%", zIndex: 1000, padding: "12px 24px", borderRadius: "100px", fontWeight: "600", fontSize: "0.85rem", background: status.type === "error" ? "#ef4444" : status.type === "success" ? "#10b981" : "#6366f1", color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}
           >
             {status.msg}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Confirmation Modal */}
       <AnimatePresence>
         {confirmDialog && (
           <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
