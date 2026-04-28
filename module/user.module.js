@@ -64,6 +64,11 @@ const UserSchema = mongoose.Schema({
     referredBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'UsersRegister'
+    },
+    role: {
+        type: String,
+        enum: ["user", "admin"],
+        default: "user"
     }
 })
 UserSchema.plugin(mongooseUniqueValidator)

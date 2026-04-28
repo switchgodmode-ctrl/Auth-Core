@@ -61,8 +61,7 @@ export const googleLogin = async (req, res) => {
             await user.save();
         }
 
-        const payload = { email: user.email, id: user._id, plan: user.plan };
-
+        const payload = { email: user.email, id: user._id, plan: user.plan, role: user.role };
         const key = process.env.JWT_SECRET || "dev_secret";
 
         const token = jwt.sign(payload, key, { expiresIn: "15m" });
@@ -143,6 +142,13 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
     const user = await UserSchemaModule.findOne({ email, status: 1 });
     if (user) {
+        const ok = await bcrypt.compare(password, user.password);
+        if (!ok) {
+            return res.status(404).json({ "status": false });
+        }
+        const payload = { email: user.email, id: user._id, plan: user.plan, role: user.role };
+        const key = process.env.JWT_SECRET || "dev_secret";
+        
         const token = jwt.sign(payload, key, { expiresIn: "15m" });
         const refreshToken = rs.generate(40);
 

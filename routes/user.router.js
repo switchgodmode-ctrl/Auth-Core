@@ -1,6 +1,6 @@
 import express from 'express';
 import * as UserControler from "../controller/user.controller.js";
-import { requireAuth } from "../utils/auth.js";
+import { requireAuth, requireAdmin } from "../utils/auth.js";
 import { uploadAvatar } from "../middleware/upload.middleware.js";
 
 const router = express.Router();
@@ -24,6 +24,6 @@ router.patch("/update-profile", requireAuth, uploadAvatar.single('avatar'), User
 router.post("/change-password", requireAuth, UserControler.changePassword);
 router.get("/sessions", requireAuth, UserControler.getSessions);
 router.post("/logout-device", requireAuth, UserControler.logoutDevice);
-router.get("/admin/stats", requireAuth, UserControler.getAdminStats);
+router.get("/admin/stats", requireAdmin, UserControler.getAdminStats);
 router.get("/download-invoice", requireAuth, UserControler.downloadInvoice);
 export default router;
