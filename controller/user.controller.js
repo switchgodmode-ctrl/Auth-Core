@@ -78,28 +78,48 @@ export const googleLogin = async (req, res) => {
 
 export const save = async (req, res) => {
     try {
+        const existingUser = await UserSchemaModule.findOne({ email: req.body.email });
+        if (existingUser) {
+            return res.status(409).json({ status: false, error: "Email already registered" });
+        }
+
         const users = await UserSchemaModule.find();
         const l = users.length;
         const _id = l === 0 ? 1 : users[l - 1]._id + 1;
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
         const verificationToken = rs.generate(48);
-        const userDetails = { ...req.body, password: hashedPassword, _id, role: "user", status: 0, info: new Date(), plan: req.body.plan || "Free", verificationToken };
+        
+        const userDetails = { 
+            ...req.body, 
+            password: hashedPassword, 
+            _id, 
+            role: "user", 
+            status: 0, 
+            info: new Date(), 
+            plan: req.body.plan || "Free", 
+            verificationToken 
+        };
+
         await UserSchemaModule.create(userDetails);
+        
         const base = process.env.APP_BASE_URL || "http://localhost:3001";
         const verifyLink = `${base}/user/verify?email=${encodeURIComponent(req.body.email)}&token=${verificationToken}`;
         
         console.log("Sending verification mail to:", req.body.email);
-        console.log("Verify Link:", verifyLink);
-
+        
         try {
             await sendMail(req.body.email, verifyLink);
         } catch (mailError) {
-            console.error("Critical Mail Error during registration:", mailError);
-            // We still proceed so the user is created, but we log the error
+            console.error("Mail Error:", mailError);
         }
 
-        res.status(200).json({ status: true, verifyLink });
+        res.status(200).json({ status: true, message: "Registration successful. Please verify your email." });
+
+    } catch (err) {
+        console.error("Save Error:", err);
+        res.status(500).json({ status: false, error: err.message });
+    }
 };
 
 export const login = async (req, res) => {
@@ -321,4 +341,4 @@ export const mailTest = async (req, res) => {
     } catch (error) {
         return res.status(500).json({ status: false, message: error.message });
     }
-};
+}
