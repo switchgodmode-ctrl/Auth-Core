@@ -7,8 +7,9 @@ import rs from 'randomstring'
 import jwt from 'jsonwebtoken';
 
 import sendMail from "../nodemailer/mailer.js";
-
+import PaymentModule from "../module/payment.module.js";
 import bcrypt from 'bcrypt';
+import PDFDocument from 'pdfkit';
 
 export const googleLogin = async (req, res) => {
     try {
@@ -65,10 +66,17 @@ export const googleLogin = async (req, res) => {
         const key = process.env.JWT_SECRET || "dev_secret";
 
         const token = jwt.sign(payload, key, { expiresIn: "15m" });
-
         const refreshToken = rs.generate(40);
 
-        await UserSchemaModule.updateOne({ _id: user._id }, { $set: { refreshToken } });
+        // Record Session & Activity
+        const device = req.headers['user-agent'] || 'Unknown Device';
+        user.sessions.push({ token: refreshToken, device, ip: req.ip });
+        if (user.sessions.length > 5) user.sessions.shift();
+        user.activityLogs.push({ action: "Google Login", ip: req.ip, details: `Logged in via Google from ${device}` });
+
+        await UserSchemaModule.updateOne({ _id: user._id }, { 
+            $set: { refreshToken, sessions: user.sessions, activityLogs: user.activityLogs } 
+        });
 
         return res.status(200).json({ status: true, token, refreshToken, info: user });
     } catch (error) {
@@ -89,7 +97,14 @@ export const save = async (req, res) => {
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
         const verificationToken = rs.generate(48);
+        const myReferralCode = rs.generate({ length: 8, charset: 'alphanumeric' }).toUpperCase();
         
+        let referredBy = null;
+        if (req.body.referralCode) {
+            const referrer = await UserSchemaModule.findOne({ referralCode: req.body.referralCode });
+            if (referrer) referredBy = referrer._id;
+        }
+
         const userDetails = { 
             ...req.body, 
             password: hashedPassword, 
@@ -98,7 +113,9 @@ export const save = async (req, res) => {
             status: 0, 
             info: new Date(), 
             plan: req.body.plan || "Free", 
-            verificationToken 
+            verificationToken,
+            referralCode: myReferralCode,
+            referredBy
         };
 
         await UserSchemaModule.create(userDetails);
@@ -126,15 +143,22 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
     const user = await UserSchemaModule.findOne({ email, status: 1 });
     if (user) {
-        const ok = await bcrypt.compare(password, user.password);
-        if (!ok) {
-            return res.status(404).json({ "status": false });
-        }
-        const payload = { email: user.email, id: user._id, plan: user.plan };
-        const key = process.env.JWT_SECRET || "dev_secret";
         const token = jwt.sign(payload, key, { expiresIn: "15m" });
         const refreshToken = rs.generate(40);
-        await UserSchemaModule.updateOne({ _id: user._id }, { $set: { refreshToken } });
+
+        // Record Session & Activity
+        const device = req.headers['user-agent'] || 'Unknown Device';
+        user.sessions.push({ token: refreshToken, device, ip: req.ip });
+        
+        // Keep only last 5 sessions
+        if (user.sessions.length > 5) user.sessions.shift();
+
+        user.activityLogs.push({ action: "Login", ip: req.ip, details: `Logged in from ${device}` });
+        
+        await UserSchemaModule.updateOne({ _id: user._id }, { 
+            $set: { refreshToken, sessions: user.sessions, activityLogs: user.activityLogs } 
+        });
+
         res.status(200).json({ "status": true, "token": token, "refreshToken": refreshToken, "info": user })
     } else {
         res.status(404).json({ "status": false });
@@ -346,3 +370,156 @@ export const mailTest = async (req, res) => {
         return res.status(500).json({ status: false, message: error.message });
     }
 }
+
+// --- NEW PROFILE & SESSION FEATURES ---
+
+export const updateProfile = async (req, res) => {
+    try {
+        const { username } = req.body;
+        const user = await UserSchemaModule.findById(req.user.id);
+        if (!user) return res.status(404).json({ status: false, message: "user_not_found" });
+
+        if (username) user.username = username;
+        if (req.file) {
+            user.avatar = `/uploads/avatars/${req.file.filename}`;
+        }
+
+        user.activityLogs.push({
+            action: "Profile Updated",
+            ip: req.ip,
+            details: "Updated username or avatar"
+        });
+
+        await user.save();
+        return res.status(200).json({ status: true, info: user });
+    } catch (error) {
+        return res.status(500).json({ status: false, error: error.message });
+    }
+};
+
+export const changePassword = async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        const user = await UserSchemaModule.findById(req.user.id);
+        
+        const isMatch = await bcrypt.compare(oldPassword, user.password);
+        if (!isMatch) return res.status(400).json({ status: false, message: "incorrect_old_password" });
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        user.activityLogs.push({ action: "Password Changed", ip: req.ip });
+        
+        await user.save();
+        return res.status(200).json({ status: true });
+    } catch (error) {
+        return res.status(500).json({ status: false, error: error.message });
+    }
+};
+
+export const getSessions = async (req, res) => {
+    try {
+        const user = await UserSchemaModule.findById(req.user.id).select('sessions');
+        return res.status(200).json({ status: true, sessions: user.sessions });
+    } catch (error) {
+        return res.status(500).json({ status: false });
+    }
+};
+
+export const logoutDevice = async (req, res) => {
+    try {
+        const { sessionId } = req.body;
+        const user = await UserSchemaModule.findById(req.user.id);
+        user.sessions = user.sessions.filter(s => s._id.toString() !== sessionId);
+        await user.save();
+        return res.status(200).json({ status: true });
+    } catch (error) {
+        return res.status(500).json({ status: false });
+    }
+};
+
+export const getAdminStats = async (req, res) => {
+    try {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        // 1. User Growth (Last 7 days)
+        const userGrowth = await UserSchemaModule.aggregate([
+            { $match: { info: { $gte: sevenDaysAgo.toISOString() } } },
+            { $group: { 
+                _id: { $substr: ["$info", 0, 10] }, 
+                count: { $sum: 1 } 
+            }},
+            { $sort: { _id: 1 } }
+        ]);
+
+        // 2. Revenue Growth (Last 7 days)
+        const revenueGrowth = await PaymentModule.aggregate([
+            { $match: { status: "paid", createdAt: { $gte: sevenDaysAgo } } },
+            { $group: { 
+                _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, 
+                total: { $sum: "$amount" } 
+            }},
+            { $sort: { _id: 1 } }
+        ]);
+
+        // 3. Plan Distribution
+        const planStats = await UserSchemaModule.aggregate([
+            { $group: { _id: "$plan", count: { $sum: 1 } } }
+        ]);
+
+        // 4. Global Totals
+        const totalUsers = await UserSchemaModule.countDocuments();
+        const totalRevenue = await PaymentModule.aggregate([
+            { $match: { status: "paid" } },
+            { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]);
+
+        return res.status(200).json({
+            status: true,
+            stats: {
+                userGrowth,
+                revenueGrowth,
+                planStats,
+                totals: {
+                    users: totalUsers,
+                    revenue: totalRevenue[0]?.total || 0
+                }
+            }
+        });
+    } catch (error) {
+        console.error("Admin Stats Error:", error);
+        return res.status(500).json({ status: false, error: error.message });
+    }
+};export const downloadInvoice = async (req, res) => {
+    try {
+        const { paymentId } = req.query;
+        const payment = await PaymentModule.findOne({ paymentId: paymentId, status: "paid" });
+        if (!payment) return res.status(404).send("Invoice not found or payment not completed");
+
+        const user = await UserSchemaModule.findById(payment.userId);
+
+        const doc = new PDFDocument();
+        let filename = `invoice-${paymentId}.pdf`;
+        
+        res.setHeader('Content-disposition', 'attachment; filename="' + filename + '"');
+        res.setHeader('Content-type', 'application/pdf');
+
+        doc.fontSize(25).text('Auth Platform Invoice', 100, 80);
+        doc.fontSize(12).text(`Invoice ID: ${paymentId}`, 100, 130);
+        doc.text(`Date: ${new Date(payment.createdAt).toLocaleDateString()}`, 100, 145);
+        doc.text(`User: ${user.username} (${user.email})`, 100, 160);
+        
+        doc.moveDown();
+        doc.text('--------------------------------------------------', 100, 180);
+        doc.text(`Description: ${payment.planTarget} Subscription`, 100, 200);
+        doc.text(`Amount: ${payment.currency} ${payment.amount / 100}`, 100, 215);
+        doc.text('--------------------------------------------------', 100, 230);
+
+        doc.fontSize(10).text('Thank you for your business!', 100, 260);
+
+        doc.pipe(res);
+        doc.end();
+    } catch (error) {
+        console.error("Invoice Error:", error);
+        res.status(500).send("Error generating invoice");
+    }
+};

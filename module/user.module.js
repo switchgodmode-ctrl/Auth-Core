@@ -44,6 +44,26 @@ const UserSchema = mongoose.Schema({
     avatar:{
         type:String,
         default:""
+    },
+    sessions: [{
+        token: String,
+        device: String,
+        ip: String,
+        lastActive: { type: Date, default: Date.now }
+    }],
+    activityLogs: [{
+        action: String,
+        ip: String,
+        details: String,
+        timestamp: { type: Date, default: Date.now }
+    }],
+    referralCode: {
+        type: String,
+        unique: true
+    },
+    referredBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'UsersRegister'
     }
 })
 UserSchema.plugin(mongooseUniqueValidator)

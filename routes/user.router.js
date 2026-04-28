@@ -1,6 +1,8 @@
 import express from 'express';
 import * as UserControler from "../controller/user.controller.js";
 import { requireAuth } from "../utils/auth.js";
+import { uploadAvatar } from "../middleware/upload.middleware.js";
+
 const router = express.Router();
 router.post("/save",UserControler.save);
 router.post("/login",UserControler.login);
@@ -16,4 +18,12 @@ router.post("/forgot-password", UserControler.forgotPassword);
 router.post("/reset-password", UserControler.resetPassword);
 router.post("/logout", requireAuth, UserControler.logout);
 router.post("/mail-test", UserControler.mailTest);
+
+// --- NEW ROUTES ---
+router.patch("/update-profile", requireAuth, uploadAvatar.single('avatar'), UserControler.updateProfile);
+router.post("/change-password", requireAuth, UserControler.changePassword);
+router.get("/sessions", requireAuth, UserControler.getSessions);
+router.post("/logout-device", requireAuth, UserControler.logoutDevice);
+router.get("/admin/stats", requireAuth, UserControler.getAdminStats);
+router.get("/download-invoice", requireAuth, UserControler.downloadInvoice);
 export default router;

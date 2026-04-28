@@ -14,7 +14,27 @@ import ResellerRouter from "./routes/reseller.router.js";
 import PaymentRouter from "./routes/payment.router.js";
 import WebhookRouter from "./routes/webhook.router.js";
 
- const app = express();
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
+
+const app = express();
+
+// 1. GLOBAL SECURITY HEADERS
+app.use(helmet());
+
+// 2. AUTH RATE LIMITING (Prevent Spam/Brute-force)
+const authLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 10, // Limit each IP to 10 requests per window
+	message: { status: false, error: "Too many attempts, please try again after 15 minutes" },
+	standardHeaders: true,
+	legacyHeaders: false,
+});
+
+app.use("/user/save", authLimiter);
+app.use("/user/login", authLimiter);
+app.use("/user/google-login", authLimiter);
+
  app.use(bodyParser.json());
  app.use(bodyParser.urlencoded({extended:true}));
  app.use((req, res, next) => {
