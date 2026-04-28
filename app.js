@@ -19,13 +19,27 @@ import { rateLimit } from 'express-rate-limit';
 
 const app = express();
 
-// 1. GLOBAL SECURITY HEADERS
-app.use(helmet());
+// 1. MUST BE FIRST: CORS HEADERS
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  res.header("Access-Control-Allow-Origin", origin || "*");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS, PUT");
+  res.header("Access-Control-Allow-Credentials", "true");
+  
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+  next();
+});
 
-// 2. AUTH RATE LIMITING (Prevent Spam/Brute-force)
+// 2. GLOBAL SECURITY HEADERS
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+// 3. AUTH RATE LIMITING
 const authLimiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
-	max: 10, // Limit each IP to 10 requests per window
+	windowMs: 15 * 60 * 1000, 
+	max: 20, 
 	message: { status: false, error: "Too many attempts, please try again after 15 minutes" },
 	standardHeaders: true,
 	legacyHeaders: false,
@@ -35,20 +49,8 @@ app.use("/user/save", authLimiter);
 app.use("/user/login", authLimiter);
 app.use("/user/google-login", authLimiter);
 
- app.use(bodyParser.json());
- app.use(bodyParser.urlencoded({extended:true}));
- app.use((req, res, next) => {
-   const origin = req.headers.origin;
-   
-   // In production, we allow the requesting origin if it exists, otherwise fallback to *
-   res.header("Access-Control-Allow-Origin", origin || "*");
-   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
-   res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
-   res.header("Access-Control-Allow-Credentials", "true");
-   
-   if (req.method === "OPTIONS") return res.sendStatus(200);
-   next();
- });
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended:true}));
  app.use("/user",UserRouter);
  app.use("/application",ApplicationRouter);
  app.use("/licence",LicenceRouter);
