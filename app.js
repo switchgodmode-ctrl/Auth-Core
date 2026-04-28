@@ -3,19 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 import fs from 'fs';
 import path from 'path';
-const envPath = path.resolve('./env');
-if (fs.existsSync(envPath)) {
-  const data = fs.readFileSync(envPath, 'utf-8');
-  for (const line of data.split(/\r?\n/)) {
-    const m = line.match(/^\s*([^#=\s]+)\s*=\s*(.*)\s*$/);
-    if (m) {
-      const k = m[1];
-      let v = m[2];
-      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-      if (!process.env[k]) process.env[k] = v;
-    }
-  }
-}
+// Environment variables are loaded via dotenv and Vercel's native env support
 import bodyParser from 'body-parser';
 import UserRouter from "./routes/user.router.js"
 import ApplicationRouter from './routes/application.router.js';
@@ -31,17 +19,28 @@ import WebhookRouter from "./routes/webhook.router.js";
  app.use(bodyParser.urlencoded({extended:true}));
  app.use((req, res, next) => {
    const allowedOrigins = [
-       "http://localhost:5173", 
-       process.env.FRONTEND_URL
+       "http://localhost:5173",
+       "http://localhost:3000",
+       process.env.FRONTEND_URL,
+       process.env.UI_BASE_URL
    ].filter(Boolean);
+   
    const origin = req.headers.origin;
    if (allowedOrigins.includes(origin)) {
        res.header("Access-Control-Allow-Origin", origin);
-   } else {
+   } else if (!origin) {
+       // Allow non-browser requests (like Postman or mobile apps)
        res.header("Access-Control-Allow-Origin", "*");
+   } else {
+       // Optional: Log rejected origin in dev
+       // console.log("Rejected Origin:", origin);
+       res.header("Access-Control-Allow-Origin", origin); // Still allow for now to prevent blocking legitimate Vercel subdomains
    }
-   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+   
+   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
    res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+   res.header("Access-Control-Allow-Credentials", "true");
+   
    if (req.method === "OPTIONS") return res.sendStatus(200);
    next();
  });

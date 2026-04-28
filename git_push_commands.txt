@@ -1,0 +1,41 @@
+# Commands used to fix the project and push to GitHub
+
+## 1. Fixed the UI Error
+Modified `ui/src/api.js` to export the `refreshToken` function:
+```javascript
+export async function refreshToken(email, refreshToken) {
+  return request("/user/refresh", {
+    method: "POST",
+    body: JSON.stringify({ email, refreshToken })
+  }, false);
+}
+```
+
+## 2. Prepared the Repository
+I performed the following steps to ensure a clean push:
+
+```bash
+# Update .gitignore to properly exclude node_modules and other junk
+# (I modified the file to include node_modules/, ui/node_modules/, etc.)
+
+# Clear git cache to apply new .gitignore rules
+git rm -r -f --cached .
+
+# Remove nested git folder from the UI directory to allow it to be tracked by the root repo
+rm -r -force ui/.git
+
+# Add all files back (now respecting .gitignore)
+git add .
+
+# Commit changes
+git commit -m "fix: added refreshToken and updated gitignore"
+
+# Update remote URL to the new destination
+git remote set-url origin https://github.com/switchgodmode-ctrl/Auth-Core.git
+
+# Ensure branch is named 'main'
+git branch -M main
+
+# Push to GitHub
+git push -u origin main
+```

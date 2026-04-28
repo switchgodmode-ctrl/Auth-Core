@@ -23,7 +23,10 @@ export const googleLogin = async (req, res) => {
 
         const aud = info.aud || "";
         const clientId = process.env.GOOGLE_CLIENT_ID || "";
-        if (clientId && aud !== clientId) return res.status(401).json({ status: false, error: "aud_mismatch" });
+        if (clientId && aud !== clientId) {
+            console.error("Google Auth Mismatch: aud=" + aud + ", env.GOOGLE_CLIENT_ID=" + clientId);
+            return res.status(401).json({ status: false, error: "aud_mismatch" });
+        }
 
         const email = info.email || "";
         const name = info.name || (email ? email.split("@")[0] : "user");
