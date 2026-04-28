@@ -155,8 +155,12 @@ export const verify = async (req, res) => {
         user.verifiedAt = new Date();
         user.verificationToken = "";
         await user.save();
-        res.status(200).send("Email verified. You can now login.");
+
+        const uiBase = process.env.UI_BASE_URL || "http://localhost:5173";
+        // Redirect to login page on the UI
+        return res.redirect(`${uiBase}/login?verified=true`);
     } catch (error) {
+        console.error("Verification Error:", error);
         res.status(500).send("Internal server error");
     }
     
