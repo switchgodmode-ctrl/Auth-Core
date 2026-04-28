@@ -18,25 +18,10 @@ import WebhookRouter from "./routes/webhook.router.js";
  app.use(bodyParser.json());
  app.use(bodyParser.urlencoded({extended:true}));
  app.use((req, res, next) => {
-   const allowedOrigins = [
-       "http://localhost:5173",
-       "http://localhost:3000",
-       process.env.FRONTEND_URL,
-       process.env.UI_BASE_URL
-   ].filter(Boolean);
-   
    const origin = req.headers.origin;
-   if (allowedOrigins.includes(origin)) {
-       res.header("Access-Control-Allow-Origin", origin);
-   } else if (!origin) {
-       // Allow non-browser requests (like Postman or mobile apps)
-       res.header("Access-Control-Allow-Origin", "*");
-   } else {
-       // Optional: Log rejected origin in dev
-       // console.log("Rejected Origin:", origin);
-       res.header("Access-Control-Allow-Origin", origin); // Still allow for now to prevent blocking legitimate Vercel subdomains
-   }
    
+   // In production, we allow the requesting origin if it exists, otherwise fallback to *
+   res.header("Access-Control-Allow-Origin", origin || "*");
    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
    res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
    res.header("Access-Control-Allow-Credentials", "true");
