@@ -139,37 +139,43 @@ export const save = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-    const { email, password } = req.body;
-    const user = await UserSchemaModule.findOne({ email, status: 1 });
-    if (user) {
-        const ok = await bcrypt.compare(password, user.password);
-        if (!ok) {
-            return res.status(404).json({ "status": false });
+    try {
+        const { email, password } = req.body;
+        const user = await UserSchemaModule.findOne({ email, status: 1 });
+        if (user) {
+            const ok = await bcrypt.compare(password, user.password);
+            if (!ok) {
+                return res.status(401).json({ "status": false, message: "Invalid credentials" });
+            }
+            
+            const payload = { email: user.email, id: user._id, plan: user.plan, role: user.role };
+            const key = process.env.JWT_SECRET || "dev_secret";
+            const token = jwt.sign(payload, key, { expiresIn: "15m" });
+            const refreshToken = rs.generate(40);
+
+            // Safety check for arrays (prevents 500 error if they are missing)
+            if (!user.sessions) user.sessions = [];
+            if (!user.activityLogs) user.activityLogs = [];
+
+            // Record Session & Activity
+            const device = req.headers['user-agent'] || 'Unknown Device';
+            user.sessions.push({ token: refreshToken, device, ip: req.ip });
+            if (user.sessions.length > 5) user.sessions.shift();
+            user.activityLogs.push({ action: "Login", ip: req.ip, details: `Logged in from ${device}` });
+            
+            await UserSchemaModule.updateOne({ _id: user._id }, { 
+                $set: { refreshToken, sessions: user.sessions, activityLogs: user.activityLogs } 
+            });
+
+            return res.status(200).json({ "status": true, "token": token, "refreshToken": refreshToken, "info": user });
+        } else {
+            return res.status(404).json({ "status": false, message: "User not found or not verified" });
         }
-        const payload = { email: user.email, id: user._id, plan: user.plan, role: user.role };
-        const key = process.env.JWT_SECRET || "dev_secret";
-        
-        const token = jwt.sign(payload, key, { expiresIn: "15m" });
-        const refreshToken = rs.generate(40);
-
-        // Record Session & Activity
-        const device = req.headers['user-agent'] || 'Unknown Device';
-        user.sessions.push({ token: refreshToken, device, ip: req.ip });
-        
-        // Keep only last 5 sessions
-        if (user.sessions.length > 5) user.sessions.shift();
-
-        user.activityLogs.push({ action: "Login", ip: req.ip, details: `Logged in from ${device}` });
-        
-        await UserSchemaModule.updateOne({ _id: user._id }, { 
-            $set: { refreshToken, sessions: user.sessions, activityLogs: user.activityLogs } 
-        });
-
-        res.status(200).json({ "status": true, "token": token, "refreshToken": refreshToken, "info": user })
-    } else {
-        res.status(404).json({ "status": false });
+    } catch (error) {
+        console.error("Login Error:", error);
+        return res.status(500).json({ status: false, error: error.message });
     }
-}
+};
 
 export const verify = async (req, res) => {
     try {
