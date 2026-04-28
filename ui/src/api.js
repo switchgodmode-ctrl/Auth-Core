@@ -1,4 +1,5 @@
-export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const rawBase = import.meta.env.VITE_API_URL || "http://localhost:3001";
+export const API_BASE = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
 
 function authHeaders() {
   const token = localStorage.getItem("token") || "";

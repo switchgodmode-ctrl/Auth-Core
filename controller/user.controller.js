@@ -240,8 +240,10 @@ export const resendVerify = async (req, res) => {
 export const googleClient = async (req, res) => {
     try {
         const clientId = process.env.GOOGLE_CLIENT_ID || "";
+        console.log("Serving Google Client ID:", clientId ? "EXISTS" : "MISSING");
         res.status(200).json({ status: true, clientId });
     } catch (error) {
+        console.error("googleClient Error:", error);
         res.status(500).json({ status: false });
     }
 }

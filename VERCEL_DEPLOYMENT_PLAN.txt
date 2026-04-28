@@ -1,0 +1,70 @@
+# VERCEL DEPLOYMENT PLAN: AUTH-CORE (UI & BACKEND)
+
+Follow these exact steps to deploy your UI and Backend separately on Vercel.
+
+---
+
+## PART 1: DEPLOYING THE BACKEND (API)
+
+1.  **Go to Vercel Dashboard:** Log in and click "Add New..." -> "Project".
+2.  **Import Repository:** Select your `Auth-Core` repository.
+3.  **Project Configuration:**
+    -   **Project Name:** `auth-core-api` (or similar)
+    -   **Root Directory:** `./` (Keep it as the root)
+    -   **Framework Preset:** `Other` (Vercel will auto-detect Node.js from `vercel.json`)
+4.  **Environment Variables:** Add the following (Copy from your `.env`):
+    -   `MONGO_URI`: (Your MongoDB Link)
+    -   `JWT_SECRET`: (Any random strong string)
+    -   `GOOGLE_CLIENT_ID`: (Your Google Client ID)
+    -   `GOOGLE_CLIENT_SECRET`: (Your Google Client Secret)
+    -   `FRONTEND_URL`: (Wait until you deploy the UI to get this URL)
+    -   `UI_BASE_URL`: (Same as FRONTEND_URL)
+    -   `APP_BASE_URL`: (Wait until this backend is deployed to get its URL)
+    -   `RAZORPAY_KEY_ID`: (Your Razorpay Key ID)
+    -   `RAZORPAY_KEY_SECRET`: (Your Razorpay Secret)
+    -   `MAIL_USER`: (Your Email)
+    -   `MAIL_PASS`: (Your App Password)
+5.  **Deploy:** Click "Deploy".
+6.  **Copy Backend URL:** Once finished, copy the provided URL (e.g., `https://auth-core-api.vercel.app`).
+
+---
+
+## PART 2: DEPLOYING THE UI (FRONTEND)
+
+1.  **Go to Vercel Dashboard:** Click "Add New..." -> "Project".
+2.  **Import Repository:** Select the same `Auth-Core` repository again.
+3.  **Project Configuration:**
+    -   **Project Name:** `auth-core-ui` (or similar)
+    -   **Root Directory:** `ui` (CRITICAL: Select the 'ui' folder)
+    -   **Framework Preset:** `Vite`
+    -   **Build Command:** `npm run build`
+    -   **Output Directory:** `dist`
+4.  **Environment Variables:**
+    -   `VITE_API_URL`: (Paste the Backend URL you copied in Part 1)
+5.  **Deploy:** Click "Deploy".
+6.  **Copy Frontend URL:** Once finished, copy the provided URL (e.g., `https://auth-core-ui.vercel.app`).
+
+---
+
+## PART 3: FINAL CONNECTION (IMPORTANT)
+
+Now that both are live, you MUST update the cross-references:
+
+1.  **Update Backend Env:**
+    -   Go to your Backend project in Vercel -> **Settings** -> **Environment Variables**.
+    -   Update `FRONTEND_URL` and `UI_BASE_URL` with your actual Frontend URL from Part 2.
+    -   Update `APP_BASE_URL` with your Backend URL from Part 1.
+    -   **Redeploy** the backend for changes to take effect.
+
+2.  **Google Cloud Console:**
+    -   Go to [Google Cloud Console](https://console.cloud.google.com/) -> APIs & Services -> Credentials.
+    -   Edit your OAuth Client ID.
+    -   Add your **Frontend URL** to **"Authorized JavaScript Origins"**.
+    -   Save and wait 5 minutes.
+
+---
+
+## TROUBLESHOOTING
+-   **Google Login fails?** Check that the Frontend URL in Google Console exactly matches your Vercel URL (including `https://`).
+-   **API Error?** Check Vercel Backend Logs to see if there's a MongoDB connection error or missing env variable.
+-   **404 on Refresh?** The `ui/vercel.json` I configured handles this, so your pages should load correctly even on refresh.
