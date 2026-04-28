@@ -50,6 +50,8 @@ export const googleLogin = async (req, res) => {
                 password: hashedPassword,
                 plan: "Free",
                 status: 1,
+                role: "user",
+                referralCode: rs.generate({ length: 8, charset: 'alphanumeric' }).toUpperCase(),
                 info: new Date(),
                 verifiedAt: new Date(),
                 verificationToken: ""
