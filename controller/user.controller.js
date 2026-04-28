@@ -88,12 +88,18 @@ export const save = async (req, res) => {
         await UserSchemaModule.create(userDetails);
         const base = process.env.APP_BASE_URL || "http://localhost:3001";
         const verifyLink = `${base}/user/verify?email=${encodeURIComponent(req.body.email)}&token=${verificationToken}`;
-        sendMail(req.body.email, verifyLink);
-        res.status(200).json({ status: true, verifyLink });
+        
+        console.log("Sending verification mail to:", req.body.email);
+        console.log("Verify Link:", verifyLink);
 
-    } catch (err) {
-        res.status(500).json({ status: false, error: err.message });
-    }
+        try {
+            await sendMail(req.body.email, verifyLink);
+        } catch (mailError) {
+            console.error("Critical Mail Error during registration:", mailError);
+            // We still proceed so the user is created, but we log the error
+        }
+
+        res.status(200).json({ status: true, verifyLink });
 };
 
 export const login = async (req, res) => {
