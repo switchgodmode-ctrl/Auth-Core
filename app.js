@@ -38,7 +38,7 @@ import WebhookRouter from "./routes/webhook.router.js";
  app.use("/payment", PaymentRouter);
  app.use("/webhook", WebhookRouter);
 app.get("/",(req,res)=>{
-    res.send("Backend is live");
+    res.send("Backend is live - v2");
 });
  const PORT = process.env.PORT || 3001;
  app.listen(PORT, () => console.log("Server invoked at port " + PORT));
