@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { createOrder, verifyPayment, refreshToken } from "../api.js";
+import { useState, useEffect } from "react";
+import { createOrder, verifyPayment, refreshToken, fetchPayments, API_BASE } from "../api.js";
 import { motion } from "framer-motion";
 import Card from "../components/ui/Card.jsx";
 import Button from "../components/ui/Button.jsx";
@@ -7,6 +7,21 @@ import Button from "../components/ui/Button.jsx";
 export default function Payments() {
   const [status, setStatus] = useState("");
   const [billing, setBilling] = useState("monthly");
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  const loadHistory = async () => {
+    const res = await fetchPayments();
+    if (res.status) setHistory(res.info);
+  };
+
+  const handleDownloadInvoice = (paymentId) => {
+    const token = localStorage.getItem("token");
+    window.open(`${API_BASE}/user/download-invoice?paymentId=${paymentId}&token=${token}`, '_blank');
+  };
 
   function loadScript(src) {
     return new Promise((resolve) => {
@@ -197,6 +212,47 @@ export default function Payments() {
               </div>
             </div>
 
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* Transaction History */}
+      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <Card title="Transaction History" subtitle="View and download your past billing invoices.">
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Invoice</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.length === 0 && (
+                  <tr><td colSpan="4" style={{ textAlign: 'center', padding: '24px', color: 'var(--muted)' }}>No transactions found.</td></tr>
+                )}
+                {history.map((p, idx) => (
+                  <tr key={idx}>
+                    <td>{new Date(p.createdAt).toLocaleDateString()}</td>
+                    <td>₹{p.amount / 100}</td>
+                    <td>
+                      <span className={`pill ${p.status === 'paid' ? 'pill-green' : 'pill-amber'}`}>
+                        {p.status}
+                      </span>
+                    </td>
+                    <td>
+                      {p.status === 'paid' ? (
+                        <Button variant="ghost" size="sm" onClick={() => handleDownloadInvoice(p._id)}>
+                          Download PDF
+                        </Button>
+                      ) : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Card>
       </motion.div>
