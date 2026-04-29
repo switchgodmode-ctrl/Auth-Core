@@ -517,77 +517,112 @@ export const getAdminStats = async (req, res) => {
         res.setHeader('Content-disposition', 'attachment; filename="' + filename + '"');
         res.setHeader('Content-type', 'application/pdf');
 
-        // --- TOP BLUE BAR & LOGO ---
+        // --- TOP BLUE HEADER ---
         doc.rect(0, 0, 600, 80).fill("#1e293b");
-        doc.fillColor("#ffffff").fontSize(24).text("AUTH CORE", 40, 30, { characterSpacing: 2 });
-        doc.fontSize(10).text("PREMIUM SERVICES BILL", 40, 58, { characterSpacing: 1 });
+        doc.fillColor("#ffffff").fontSize(26).text("AUTH CORE", 40, 30, { characterSpacing: 2 });
+        doc.fontSize(10).text("OFFICIAL TAX INVOICE", 40, 60, { characterSpacing: 1 });
         
-        doc.fillColor("#ffffff").fontSize(10).text("switchgodmode@gmail.com", 350, 30, { align: "right" });
-        doc.text("Ahmedabad, Gujarat, India", 350, 45, { align: "right" });
-        doc.text("GSTIN: 24AAACN1234A1Z5", 350, 60, { align: "right" });
+        doc.fillColor("#ffffff").fontSize(10).text("switchgodmode@gmail.com", 350, 25, { align: "right" });
+        doc.text("Ahmedabad, Gujarat, India", 350, 40, { align: "right" });
+        doc.text("GSTIN: 24AAACN1234A1Z5", 350, 55, { align: "right" });
+        doc.text("PAN: ABCDE1234F", 350, 70, { align: "right" });
 
-        // --- INVOICE INFO BOX ---
+        // --- CUSTOMER & BILLING INFO ---
         let infoTop = 100;
-        doc.fillColor("#f8fafc").rect(40, infoTop, 250, 80).fill();
-        doc.fillColor("#1e293b").fontSize(12).text("INVOICE TO:", 50, infoTop + 10);
-        doc.fillColor("#475569").fontSize(10).text(user.username || "Valued Customer", 50, infoTop + 30);
+        doc.fillColor("#f1f5f9").rect(40, infoTop, 250, 90).fill();
+        doc.fillColor("#1e293b").fontSize(11).text("BILL TO:", 50, infoTop + 10);
+        doc.fillColor("#334155").fontSize(10).text(user.username || "Authorized User", 50, infoTop + 30);
         doc.text(user.email, 50, infoTop + 45);
-        doc.text("Payment Mode: Razorpay Online", 50, infoTop + 60);
+        doc.text(`User ID: #USR-${user._id}`, 50, infoTop + 60);
+        doc.text("Payment: Razorpay Secure Checkout", 50, infoTop + 75);
 
-        doc.fillColor("#f8fafc").rect(305, infoTop, 250, 80).fill();
-        doc.fillColor("#1e293b").fontSize(12).text("BILLING DETAILS:", 315, infoTop + 10);
-        doc.fillColor("#475569").fontSize(10).text(`Invoice No: #AUTH-${paymentId}`, 315, infoTop + 30);
-        doc.text(`Date: ${new Date(payment.createdAt).toLocaleDateString()}`, 315, infoTop + 45);
-        doc.text(`Status: PAID SUCCESSFUL`, 315, infoTop + 60);
+        doc.fillColor("#f1f5f9").rect(305, infoTop, 250, 90).fill();
+        doc.fillColor("#1e293b").fontSize(11).text("INVOICE SUMMARY:", 315, infoTop + 10);
+        doc.fillColor("#334155").fontSize(10).text(`Invoice No: #AUTH-2024-${paymentId}`, 315, infoTop + 30);
+        doc.text(`Transaction ID: ${payment.paymentId || 'N/A'}`, 315, infoTop + 45);
+        doc.text(`Billing Date: ${new Date(payment.createdAt).toLocaleDateString()}`, 315, infoTop + 60);
+        doc.text(`Status: COMPLETED / PAID`, 315, infoTop + 75);
 
-        // --- TABLE HEADER ---
+        // --- MAIN BILLING TABLE ---
         let tableTop = 210;
         doc.fillColor("#1e293b").rect(40, tableTop, 515, 25).fill();
         doc.fillColor("#ffffff").fontSize(10).text("SL.", 50, tableTop + 8);
-        doc.text("ITEM DESCRIPTION", 100, tableTop + 8);
-        doc.text("QTY", 350, tableTop + 8);
+        doc.text("SERVICE DESCRIPTION", 100, tableTop + 8);
+        doc.text("UNIT", 350, tableTop + 8);
         doc.text("PRICE", 400, tableTop + 8);
         doc.text("TOTAL", 480, tableTop + 8, { align: "right" });
 
-        // --- TABLE ROWS ---
         let rowTop = tableTop + 25;
-        doc.fillColor("#475569").fontSize(10);
+        doc.rect(40, rowTop, 515, 40).strokeColor("#e2e8f0").lineWidth(0.5).stroke();
+        doc.fillColor("#334155").fontSize(10);
+        doc.text("01", 50, rowTop + 15);
+        doc.text(`${payment.planTarget} Subscription Package`, 100, rowTop + 10);
+        doc.fontSize(8).text("Full access to runtime trust engine and unlimited modules", 100, rowTop + 25);
+        doc.fontSize(10).text("1 MO", 350, rowTop + 15);
+        doc.text(`${payment.amount / 100}.00`, 400, rowTop + 15);
+        doc.text(`${payment.amount / 100}.00`, 480, rowTop + 15, { align: "right" });
+
+        // --- PREMIUM BENEFITS SECTION (FILLING SPACE) ---
+        let benefitsTop = rowTop + 60;
+        doc.fillColor("#f8fafc").rect(40, benefitsTop, 250, 130).fill();
+        doc.fillColor("#1e293b").fontSize(11).text("PREMIUM BENEFITS INCLUDED:", 50, benefitsTop + 10);
+        doc.fillColor("#475569").fontSize(9);
+        const benefits = [
+            "• Unlimited Applications & Modules",
+            "• Real-time Threat Intelligence",
+            "• Advanced Runtime Trust Engine Rules",
+            "• Enterprise Tier Priority Support",
+            "• 99.9% API Uptime SLA Guarantee",
+            "• Daily Security Audits & Reports"
+        ];
+        benefits.forEach((b, i) => doc.text(b, 55, benefitsTop + 30 + (i * 15)));
+
+        // --- FINANCIAL SUMMARY ---
+        let summaryTop = benefitsTop;
+        doc.fillColor("#475569").fontSize(10).text("Sub Total:", 380, summaryTop + 10);
+        doc.text(`${payment.currency} ${payment.amount / 100}.00`, 480, summaryTop + 10, { align: "right" });
         
-        // Row 1
-        doc.rect(40, rowTop, 515, 30).strokeColor("#e2e8f0").lineWidth(0.5).stroke();
-        doc.text("01", 50, rowTop + 10);
-        doc.text(`${payment.planTarget} Subscription - 1 Month Access`, 100, rowTop + 10);
-        doc.text("1", 350, rowTop + 10);
-        doc.text(`${payment.amount / 100}.00`, 400, rowTop + 10);
-        doc.text(`${payment.amount / 100}.00`, 480, rowTop + 10, { align: "right" });
-
-        // --- SUMMARY BOX ---
-        let summaryTop = rowTop + 50;
-        doc.fillColor("#475569").fontSize(10).text("Sub Total:", 380, summaryTop);
-        doc.text(`${payment.currency} ${payment.amount / 100}.00`, 480, summaryTop, { align: "right" });
+        doc.text("Service Tax (0%):", 380, summaryTop + 25);
+        doc.text("0.00", 480, summaryTop + 25, { align: "right" });
         
-        doc.text("Tax (GST 0%):", 380, summaryTop + 15);
-        doc.text("0.00", 480, summaryTop + 15, { align: "right" });
+        doc.text("Convenience Fee:", 380, summaryTop + 40);
+        doc.text("0.00", 480, summaryTop + 40, { align: "right" });
 
-        doc.rect(370, summaryTop + 35, 185, 30).fill("#1e293b");
-        doc.fillColor("#ffffff").fontSize(12).text("NET PAYABLE:", 380, summaryTop + 43);
-        doc.text(`${payment.currency} ${payment.amount / 100}.00`, 480, summaryTop + 43, { align: "right" });
+        doc.rect(370, summaryTop + 60, 185, 40).fill("#1e293b");
+        doc.fillColor("#ffffff").fontSize(13).text("NET AMOUNT:", 380, summaryTop + 75);
+        doc.text(`${payment.currency} ${payment.amount / 100}.00`, 480, summaryTop + 75, { align: "right" });
 
-        // --- TERMS ---
-        doc.fillColor("#1e293b").fontSize(12).text("Terms & Conditions:", 40, 500);
+        // --- SECURITY & SUPPORT BOXES (FILLING SPACE) ---
+        let bottomTop = 410;
+        doc.rect(40, bottomTop, 515, 120).strokeColor("#e2e8f0").stroke();
+        
+        doc.fillColor("#1e293b").fontSize(12).text("SECURITY & COMPLIANCE", 55, bottomTop + 15);
+        doc.fillColor("#475569").fontSize(9).text("This transaction was processed over a 256-bit SSL encrypted connection. Our systems are SOC2 and GDPR compliant, ensuring your data remains secure at all times.", 55, bottomTop + 35, { width: 220 });
+
+        doc.fillColor("#1e293b").fontSize(12).text("TECHNICAL SUPPORT", 310, bottomTop + 15);
+        doc.fillColor("#475569").fontSize(9).text("For any billing inquiries or technical issues, please visit our help center or email our priority support desk at switchgodmode@gmail.com. Response time: < 4 Hours.", 310, bottomTop + 35, { width: 220 });
+
+        // --- TERMS & LEGAL ---
+        doc.fillColor("#1e293b").fontSize(12).text("Terms & Conditions:", 40, 560);
         doc.fillColor("#64748b").fontSize(8);
         const terms = [
-            "1. This is a digital invoice and does not require a physical signature.",
-            "2. Subscription fees are non-refundable once the premium features are activated.",
-            "3. Access to premium tools is valid for the duration specified in the plan.",
-            "4. For technical support or billing disputes, contact: switchgodmode@gmail.com",
-            "5. All disputes are subject to Ahmedabad jurisdiction only."
+            "1. This is a computer-generated tax invoice and does not require a physical signature.",
+            "2. Subscription fees are charged in advance and are non-refundable once the service is provisioned.",
+            "3. The validity of this plan is 30 days from the date of payment as mentioned in the billing details.",
+            "4. Users are responsible for maintaining the confidentiality of their license keys and account credentials.",
+            "5. All services are governed by the AuthCore Platform Master Service Agreement and Privacy Policy.",
+            "6. Any disputes arising out of this transaction shall be subject to the exclusive jurisdiction of Ahmedabad courts."
         ];
-        terms.forEach((t, i) => doc.text(t, 40, 520 + (i * 12)));
+        terms.forEach((t, i) => doc.text(t, 40, 580 + (i * 12)));
 
-        // --- FINAL FOOTER ---
-        doc.strokeColor("#cbd5e1").lineWidth(1).moveTo(40, 750).lineTo(555, 750).stroke();
-        doc.fillColor("#94a3b8").fontSize(9).text("THANK YOU FOR CHOOSING AUTH CORE PLATFORM", 40, 765, { align: "center", width: 515 });
+        // --- FINAL SEAL OF AUTHENTICITY ---
+        doc.strokeColor("#1e293b").lineWidth(2).circle(500, 680, 40).stroke();
+        doc.fillColor("#1e293b").fontSize(8).text("VERIFIED", 480, 675);
+        doc.text("PAYMENT", 480, 685);
+
+        // --- FOOTER ---
+        doc.strokeColor("#cbd5e1").lineWidth(1).moveTo(40, 780).lineTo(555, 780).stroke();
+        doc.fillColor("#94a3b8").fontSize(10).text("AUTHENTICATED BY AUTH CORE SECURITY ENGINE", 40, 795, { align: "center", width: 515 });
 
         doc.pipe(res);
         doc.end();
