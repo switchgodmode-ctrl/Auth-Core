@@ -51,8 +51,14 @@ export const createOrder = async (req, res) => {
         notes: { userId: String(userId), planTarget: planTarget || "Premium" }
       });
     } catch (orderErr) {
-      console.error("Razorpay API Error:", orderErr);
-      return res.status(500).json({ status: false, error: "Razorpay API failed: " + (orderErr.description || orderErr.message) });
+      // LOG THE FULL ERROR FOR DEBUGGING (Visible in Vercel/Server logs)
+      console.error("RAZORPAY_API_CRASH:", JSON.stringify(orderErr, null, 2));
+      
+      // SHOW A SAFE MESSAGE TO THE USER (Privacy first)
+      return res.status(500).json({ 
+        status: false, 
+        error: "Unable to initialize payment. Please verify your payment credentials in the dashboard." 
+      });
     }
 
     try {
