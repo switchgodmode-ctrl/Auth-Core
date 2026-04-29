@@ -506,10 +506,11 @@ export const getAdminStats = async (req, res) => {
 };export const downloadInvoice = async (req, res) => {
     try {
         const { paymentId } = req.query;
-        const payment = await PaymentModule.findOne({ paymentId: paymentId, status: "paid" });
+        // Search by database _id since that's what's passed from UI
+        const payment = await PaymentModule.findOne({ _id: Number(paymentId), status: "paid" });
         if (!payment) return res.status(404).send("Invoice not found or payment not completed");
 
-        const user = await UserSchemaModule.findById(payment.userId);
+        const user = await UserSchemaModule.findOne({ _id: Number(payment.userId) });
 
         const doc = new PDFDocument();
         let filename = `invoice-${paymentId}.pdf`;
