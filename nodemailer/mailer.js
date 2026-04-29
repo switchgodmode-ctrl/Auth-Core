@@ -10,36 +10,17 @@ async function sendMail(email, link, type = "verify") {
      return;
    }
 
-   const host = process.env.MAIL_HOST || process.env.host || "";
-   const port = process.env.MAIL_PORT || process.env.port || "";
-   const secure = process.env.MAIL_SECURE || process.env.secure || "";
-   const service = process.env.MAIL_SERVICE || process.env.service || "gmail";
+    let transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user, pass }
+    });
 
-   let transporter = host ? nodemailer.createTransport({
-     host,
-     port: Number(port || 465),
-     secure: secure ? secure === "true" : true,
-     auth: { user, pass }
-   }) : (service && service.toLowerCase() === "gmail"
-     ? nodemailer.createTransport({
-         host: "smtp.gmail.com",
-         port: 465,
-         secure: true,
-         auth: { user, pass }
-       })
-     : nodemailer.createTransport({
-         service,
-         auth: { user, pass }
-       })
-   );
-
-   try {
-     await transporter.verify();
-     console.log("SMTP ready:", service || host, "as", user);
-   } catch (err) {
-     console.error("SMTP verify failed:", err?.message || err);
-     return;
-   }
+    try {
+      await transporter.verify();
+      console.log("SMTP ready as", user);
+    } catch (err) {
+      console.error("SMTP_VERIFY_ERROR:", err.message);
+    }
 
    const isVerify = type === "verify";
    const isReset = type === "reset";

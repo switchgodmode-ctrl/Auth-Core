@@ -133,8 +133,10 @@ export const verifyPayment = async (req, res) => {
  
     const user = await UserSchemaModule.findOne({ _id: Number(payment.userId) });
     if (user) {
+      console.log(`VERIFY: Updating plan for user ${user.email} to ${payment.planTarget}`);
       user.plan = payment.planTarget || "Premium";
       await user.save();
+      console.log("VERIFY: User plan updated successfully");
 
       // SEND INVOICE EMAIL
       try {

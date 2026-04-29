@@ -298,7 +298,7 @@ export const resendVerify = async (req, res) => {
         }
         const base = process.env.APP_BASE_URL || "http://localhost:3001";
         const verifyLink = `${base}/user/verify?email=${encodeURIComponent(email)}&token=${token}`;
-        sendMail(email, verifyLink, "verify");
+        await sendMail(email, verifyLink, "verify");
         res.status(200).json({ status: true, verifyLink });
     } catch (error) {
         res.status(500).json({ status: false });
@@ -329,7 +329,7 @@ export const forgotPassword = async (req, res) => {
             await user.save();
             const base = process.env.UI_BASE_URL || "http://localhost:5173";
             const link = `${base}/reset-password?email=${encodeURIComponent(email)}&token=${token}`;
-            sendMail(email, link, "reset");
+            await sendMail(email, link, "reset");
         }
         return res.status(200).json({ status: true });
     } catch (error) {
@@ -378,7 +378,7 @@ export const mailTest = async (req, res) => {
         if (!to) return res.status(400).json({ status: false, message: "to required" });
         const ui = process.env.UI_BASE_URL || "http://localhost:5173";
         const link = `${ui}/login`;
-        sendMail(to, link, "verify");
+        await sendMail(to, link, "verify");
         return res.status(200).json({ status: true });
     } catch (error) {
         return res.status(500).json({ status: false, message: error.message });
