@@ -14,7 +14,7 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { fetchAdminStats } from '../api';
+import { fetchAdminStats, fetchAllUsers, toggleUserSdkAccess } from '../api';
 import Card from '../components/ui/Card';
 import './dashboard.css';
 
@@ -34,10 +34,12 @@ ChartJS.register(
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadStats();
+    loadUsers();
   }, []);
 
   const loadStats = async () => {
@@ -50,6 +52,28 @@ const AdminDashboard = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const res = await fetchAllUsers();
+      if (res.status) {
+        setUsers(res.users);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleSdk = async (id, currentStatus) => {
+    try {
+      const res = await toggleUserSdkAccess(id, !currentStatus);
+      if (res.status) {
+        setUsers(users.map(u => u._id === id ? { ...u, sdkAccess: !currentStatus } : u));
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -258,6 +282,73 @@ const AdminDashboard = () => {
                                 <td style={{ color: 'var(--muted)' }}>{((item.count / stats.totals.users) * 100).toFixed(1)}%</td>
                             </tr>
                         ))}
+                    </tbody>
+                </table>
+            </div>
+        </Card>
+      </div>
+
+      {/* User Management Section */}
+      <div style={{ marginTop: '24px' }}>
+        <Card title="User Management" subtitle="Manage permissions and SDK access for all platform users">
+            <div className="table-container" style={{ marginTop: '20px' }}>
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Email</th>
+                            <th>Username</th>
+                            <th>Plan</th>
+                            <th>Status</th>
+                            <th>SDK Access</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {users.map((user) => (
+                            <tr key={user._id}>
+                                <td style={{ color: 'var(--muted)' }}>#{user._id}</td>
+                                <td style={{ fontWeight: 500 }}>{user.email}</td>
+                                <td>{user.username}</td>
+                                <td>
+                                    <span style={{
+                                        padding: '4px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 600,
+                                        backgroundColor: user.plan === 'Free' ? 'rgba(100,116,139,0.2)' : 'rgba(16,185,129,0.2)',
+                                        color: user.plan === 'Free' ? '#cbd5e1' : '#10b981'
+                                    }}>
+                                        {user.plan}
+                                    </span>
+                                </td>
+                                <td>{user.status === 1 ? 'Verified' : 'Pending'}</td>
+                                <td>
+                                    <button 
+                                        onClick={() => handleToggleSdk(user._id, user.sdkAccess)}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: '6px',
+                                            fontSize: '0.8rem',
+                                            fontWeight: 600,
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            backgroundColor: user.sdkAccess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                            color: user.sdkAccess ? '#10b981' : '#ef4444',
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                    >
+                                        {user.sdkAccess ? 'Access Granted' : 'Access Denied'}
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                        {users.length === 0 && (
+                            <tr>
+                                <td colSpan="6" style={{ textAlign: 'center', padding: '30px', color: 'var(--muted)' }}>
+                                    No users found in the system.
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>

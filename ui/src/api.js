@@ -218,3 +218,11 @@ export async function changePassword(payload) {
 export async function fetchPayments() {
   return request("/payment/fetch-mine", {}, true);
 }
+
+export async function fetchAllUsers() {
+  return request("/user/admin/users", {}, true);
+}
+
+export async function toggleUserSdkAccess(id, sdkAccess) {
+  return request(`/user/admin/users/${id}/sdk-access`, { method: "PATCH", body: JSON.stringify({ sdkAccess }) }, true);
+}

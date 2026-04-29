@@ -92,6 +92,21 @@ export default function DashboardLayout() {
             Webhooks
           </NavLink>
 
+          {(() => {
+            try {
+              const u = JSON.parse(localStorage.getItem("user") || "{}");
+              if (u.sdkAccess || localStorage.getItem("role") === "admin") {
+                return (
+                  <NavLink to="/sdk" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    SDK Downloads
+                  </NavLink>
+                );
+              }
+            } catch(e){}
+            return null;
+          })()}
+
           <div className="dash-nav-group">Account</div>
           <NavLink to="/payments" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>

@@ -631,3 +631,31 @@ export const getAdminStats = async (req, res) => {
         res.status(500).send("Error generating invoice");
     }
 };
+
+export const getAllUsers = async (req, res) => {
+    try {
+        const users = await UserSchemaModule.find({}, { password: 0, sessions: 0, activityLogs: 0 });
+        res.status(200).json({ status: true, users });
+    } catch (error) {
+        res.status(500).json({ status: false, error: error.message });
+    }
+};
+
+export const toggleSdkAccess = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { sdkAccess } = req.body;
+        
+        const user = await UserSchemaModule.findOne({ _id: id });
+        if (!user) {
+            return res.status(404).json({ status: false, message: "User not found" });
+        }
+        
+        user.sdkAccess = sdkAccess;
+        await user.save();
+        
+        res.status(200).json({ status: true, message: "SDK access updated successfully", sdkAccess: user.sdkAccess });
+    } catch (error) {
+        res.status(500).json({ status: false, error: error.message });
+    }
+};
