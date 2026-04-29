@@ -5,8 +5,8 @@ import PaymentModule from "../module/payment.module.js";
 import UserSchemaModule from "../module/user.module.js";
 
 const getRazorpayInstance = () => {
-  const key_id = process.env.RAZORPAY_KEY_ID || "";
-  const key_secret = process.env.RAZORPAY_KEY_SECRET || "";
+  const key_id = (process.env.RAZORPAY_KEY_ID || "").trim();
+  const key_secret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
   
   if (!key_id || !key_secret) {
     console.error("CRITICAL: Razorpay keys missing in environment.");
@@ -55,9 +55,18 @@ export const createOrder = async (req, res) => {
       });
     } catch (orderErr) {
       console.error("RAZORPAY_ORDER_API_ERROR:", orderErr);
+      
+      // Dig deeper into Razorpay's specific error structure
+      let errMsg = "Unknown Razorpay Error";
+      if (typeof orderErr === 'string') errMsg = orderErr;
+      else if (orderErr.error && orderErr.error.description) errMsg = orderErr.error.description;
+      else if (orderErr.description) errMsg = orderErr.description;
+      else if (orderErr.message) errMsg = orderErr.message;
+      else errMsg = JSON.stringify(orderErr);
+
       return res.status(500).json({ 
         status: false, 
-        error: "Razorpay service unavailable. Please try again later." 
+        error: `Razorpay Error: ${errMsg}` 
       });
     }
 
