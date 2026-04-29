@@ -13,7 +13,7 @@ export default function Sdk() {
         </div>
       </header>
       
-      <div style={{ marginTop: '24px' }}>
+      <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <Card title="Native C# Console SDK" subtitle="Lightweight, dependency-free wrapper for .NET frameworks.">
           <div style={{ padding: '20px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <p style={{ color: 'var(--text)', fontSize: '0.95rem', lineHeight: '1.6' }}>
@@ -32,6 +32,32 @@ export default function Sdk() {
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                <Button onClick={() => window.location.href = '/downloads/AuthCore_CSharp_SDK.zip'} variant="primary">
                    Download C# SDK (.zip)
+               </Button>
+               <Button onClick={() => alert("Opening documentation...")} variant="outline">
+                   View Documentation
+               </Button>
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Native C++ Console SDK" subtitle="Performance-focused, zero-dependency C++17 client.">
+          <div style={{ padding: '20px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <p style={{ color: 'var(--text)', fontSize: '0.95rem', lineHeight: '1.6' }}>
+              The C++ SDK is designed for maximum performance and stealth. It uses native <code>WinHttp</code> for networking and includes built-in support for real-time administrator broadcasts via native Windows MessageBox alerts.
+            </p>
+            
+            <div style={{ background: 'var(--surface2)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <h4 style={{ color: 'var(--muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Key Features</h4>
+                <ul style={{ color: 'var(--text)', fontSize: '0.9rem', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <li><strong style={{ color: 'var(--accent)' }}>Zero Dependencies:</strong> Compiled against native Windows APIs only (WinHttp, User32).</li>
+                    <li><strong style={{ color: 'var(--accent)' }}>Real-Time Messaging:</strong> Built-in <code>MessageBox</code> support for instant admin broadcasts.</li>
+                    <li><strong style={{ color: 'var(--accent)' }}>Universal Build:</strong> Includes build scripts for both MSVC (Visual Studio) and MinGW (g++).</li>
+                </ul>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+               <Button onClick={() => window.location.href = '/downloads/AuthCore_CPP_SDK.zip'} variant="primary">
+                   Download C++ SDK (.zip)
                </Button>
                <Button onClick={() => alert("Opening documentation...")} variant="outline">
                    View Documentation
