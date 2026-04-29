@@ -563,9 +563,9 @@ export const getAdminStats = async (req, res) => {
         doc.text(`${payment.amount / 100}.00`, 480, rowTop + 15, { align: "right" });
 
         // --- PREMIUM BENEFITS SECTION (FILLING SPACE) ---
-        let benefitsTop = rowTop + 60;
-        doc.fillColor("#f8fafc").rect(40, benefitsTop, 250, 130).fill();
-        doc.fillColor("#1e293b").fontSize(11).text("PREMIUM BENEFITS INCLUDED:", 50, benefitsTop + 10);
+        let benefitsTop = rowTop + 50;
+        doc.fillColor("#f8fafc").rect(40, benefitsTop, 250, 115).fill();
+        doc.fillColor("#1e293b").fontSize(11).text("PREMIUM BENEFITS INCLUDED:", 50, benefitsTop + 8);
         doc.fillColor("#475569").fontSize(9);
         const benefits = [
             "• Unlimited Applications & Modules",
@@ -575,35 +575,35 @@ export const getAdminStats = async (req, res) => {
             "• 99.9% API Uptime SLA Guarantee",
             "• Daily Security Audits & Reports"
         ];
-        benefits.forEach((b, i) => doc.text(b, 55, benefitsTop + 30 + (i * 15)));
+        benefits.forEach((b, i) => doc.text(b, 55, benefitsTop + 25 + (i * 13)));
 
         // --- FINANCIAL SUMMARY ---
         let summaryTop = benefitsTop;
-        doc.fillColor("#475569").fontSize(10).text("Sub Total:", 380, summaryTop + 10);
-        doc.text(`${payment.currency} ${payment.amount / 100}.00`, 480, summaryTop + 10, { align: "right" });
+        doc.fillColor("#475569").fontSize(10).text("Sub Total:", 380, summaryTop + 8);
+        doc.text(`${payment.currency} ${payment.amount / 100}.00`, 480, summaryTop + 8, { align: "right" });
         
-        doc.text("Service Tax (0%):", 380, summaryTop + 25);
-        doc.text("0.00", 480, summaryTop + 25, { align: "right" });
+        doc.text("Service Tax (0%):", 380, summaryTop + 20);
+        doc.text("0.00", 480, summaryTop + 20, { align: "right" });
         
-        doc.text("Convenience Fee:", 380, summaryTop + 40);
-        doc.text("0.00", 480, summaryTop + 40, { align: "right" });
+        doc.text("Convenience Fee:", 380, summaryTop + 35);
+        doc.text("0.00", 480, summaryTop + 35, { align: "right" });
 
-        doc.rect(370, summaryTop + 60, 185, 40).fill("#1e293b");
-        doc.fillColor("#ffffff").fontSize(13).text("NET AMOUNT:", 380, summaryTop + 75);
-        doc.text(`${payment.currency} ${payment.amount / 100}.00`, 480, summaryTop + 75, { align: "right" });
+        doc.rect(370, summaryTop + 55, 185, 35).fill("#1e293b");
+        doc.fillColor("#ffffff").fontSize(12).text("NET AMOUNT:", 380, summaryTop + 67);
+        doc.text(`${payment.currency} ${payment.amount / 100}.00`, 480, summaryTop + 67, { align: "right" });
 
         // --- SECURITY & SUPPORT BOXES (FILLING SPACE) ---
-        let bottomTop = 410;
-        doc.rect(40, bottomTop, 515, 120).strokeColor("#e2e8f0").stroke();
+        let bottomTop = 385;
+        doc.rect(40, bottomTop, 515, 110).strokeColor("#e2e8f0").stroke();
         
-        doc.fillColor("#1e293b").fontSize(12).text("SECURITY & COMPLIANCE", 55, bottomTop + 15);
-        doc.fillColor("#475569").fontSize(9).text("This transaction was processed over a 256-bit SSL encrypted connection. Our systems are SOC2 and GDPR compliant, ensuring your data remains secure at all times.", 55, bottomTop + 35, { width: 220 });
+        doc.fillColor("#1e293b").fontSize(12).text("SECURITY & COMPLIANCE", 55, bottomTop + 12);
+        doc.fillColor("#475569").fontSize(9).text("This transaction was processed over a 256-bit SSL encrypted connection. Our systems are SOC2 and GDPR compliant, ensuring your data remains secure at all times.", 55, bottomTop + 30, { width: 220 });
 
-        doc.fillColor("#1e293b").fontSize(12).text("TECHNICAL SUPPORT", 310, bottomTop + 15);
-        doc.fillColor("#475569").fontSize(9).text("For any billing inquiries or technical issues, please visit our help center or email our priority support desk at switchgodmode@gmail.com. Response time: < 4 Hours.", 310, bottomTop + 35, { width: 220 });
+        doc.fillColor("#1e293b").fontSize(12).text("TECHNICAL SUPPORT", 310, bottomTop + 12);
+        doc.fillColor("#475569").fontSize(9).text("For any billing inquiries or technical issues, please visit our help center or email our priority support desk at switchgodmode@gmail.com. Response time: < 4 Hours.", 310, bottomTop + 30, { width: 220 });
 
         // --- TERMS & LEGAL ---
-        doc.fillColor("#1e293b").fontSize(12).text("Terms & Conditions:", 40, 560);
+        doc.fillColor("#1e293b").fontSize(11).text("Terms & Conditions:", 40, 510);
         doc.fillColor("#64748b").fontSize(8);
         const terms = [
             "1. This is a computer-generated tax invoice and does not require a physical signature.",
@@ -613,16 +613,16 @@ export const getAdminStats = async (req, res) => {
             "5. All services are governed by the AuthCore Platform Master Service Agreement and Privacy Policy.",
             "6. Any disputes arising out of this transaction shall be subject to the exclusive jurisdiction of Ahmedabad courts."
         ];
-        terms.forEach((t, i) => doc.text(t, 40, 580 + (i * 12)));
+        terms.forEach((t, i) => doc.text(t, 40, 525 + (i * 11)));
 
         // --- FINAL SEAL OF AUTHENTICITY ---
-        doc.strokeColor("#1e293b").lineWidth(2).circle(500, 680, 40).stroke();
-        doc.fillColor("#1e293b").fontSize(8).text("VERIFIED", 480, 675);
-        doc.text("PAYMENT", 480, 685);
+        doc.strokeColor("#1e293b").lineWidth(2).circle(500, 610, 35).stroke();
+        doc.fillColor("#1e293b").fontSize(8).text("VERIFIED", 480, 605);
+        doc.text("PAYMENT", 480, 615);
 
         // --- FOOTER ---
-        doc.strokeColor("#cbd5e1").lineWidth(1).moveTo(40, 780).lineTo(555, 780).stroke();
-        doc.fillColor("#94a3b8").fontSize(10).text("AUTHENTICATED BY AUTH CORE SECURITY ENGINE", 40, 795, { align: "center", width: 515 });
+        doc.strokeColor("#cbd5e1").lineWidth(1).moveTo(40, 740).lineTo(555, 740).stroke();
+        doc.fillColor("#94a3b8").fontSize(10).text("AUTHENTICATED BY AUTH CORE SECURITY ENGINE", 40, 755, { align: "center", width: 515 });
 
         doc.pipe(res);
         doc.end();
