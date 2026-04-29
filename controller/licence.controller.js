@@ -240,3 +240,21 @@ export const resetHwid = async (req, res) => {
         res.status(500).json({ status: false, message: error.message });
     }
 };
+
+export const sendCustomMessage = async (req, res) => {
+    try {
+        const { licenceKey, appId, message } = req.body;
+        if (!licenceKey || !appId) {
+            return res.status(400).json({ status: false, message: "licenceKey and appId are required" });
+        }
+        const licence = await LicenceSchemaModule.findOne({ key: licenceKey, appId: Number(appId) });
+        if (!licence) {
+            return res.status(404).json({ status: false, message: "Licence not found for this application" });
+        }
+        licence.customMessage = message || "";
+        await licence.save();
+        res.status(200).json({ status: true, message: "Custom message updated successfully" });
+    } catch (error) {
+        res.status(500).json({ status: false, message: error.message });
+    }
+};

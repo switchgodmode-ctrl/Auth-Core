@@ -83,10 +83,18 @@ namespace AuthCore.ConsoleExample
 
                 if (allowed)
                 {
+                    string customMessage = dict.ContainsKey("customMessage") && dict["customMessage"] != null ? dict["customMessage"].ToString() : "";
+
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("\n[+] Authentication Successful!");
-                    Console.WriteLine(string.Format("[+] Welcome: {0}", message));
                     Console.ResetColor();
+
+                    if (!string.IsNullOrEmpty(customMessage))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine(string.Format("[!] BROADCAST: {0}", customMessage));
+                        Console.ResetColor();
+                    }
 
                     // Start Heartbeat
                     Sdk.StartHeartbeat(baseUrl, appId, licenseKey, 15000);

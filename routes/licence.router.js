@@ -10,5 +10,6 @@ router.delete("/delete", requireAuth, LincenceRouter.deleteLicence);
 router.post("/expiry-check", requireAuth, LincenceRouter.expiryCheck);
 router.post("/ban-unban", requireAuth, LincenceRouter.banUnbanLicence);
 router.post("/reset-hwid", requireAuth, LincenceRouter.resetHwid);
+router.post("/custom-message", requireAuth, LincenceRouter.sendCustomMessage);
 
 export default router;

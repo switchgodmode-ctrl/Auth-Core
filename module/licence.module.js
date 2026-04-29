@@ -49,9 +49,13 @@ const LicenceSchema = mongoose.Schema({
     type: Date,
     },
       isBanned: {
-  type: Boolean,
-  default: false
-}
+    type: Boolean,
+    default: false
+  },
+  customMessage: {
+    type: String,
+    default: ""
+  }
 
 
 });

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchLicences, banUnbanLicence, updateLicenceDays, runExpiryCheck, resetHwid, setOffline, deleteLicence } from "../api.js";
+import { fetchLicences, banUnbanLicence, updateLicenceDays, runExpiryCheck, resetHwid, setOffline, deleteLicence, sendLicenceMessage } from "../api.js";
 import Button from "../components/ui/Button.jsx";
 import Input from "../components/ui/Input.jsx";
 
@@ -14,6 +14,11 @@ export default function Licences() {
   const [daysKey, setDaysKey] = useState("");
   const [daysAppId, setDaysAppId] = useState(0);
   const [daysValue, setDaysValue] = useState("");
+
+  const [msgOpen, setMsgOpen] = useState(false);
+  const [msgKey, setMsgKey] = useState("");
+  const [msgAppId, setMsgAppId] = useState(0);
+  const [msgValue, setMsgValue] = useState("");
 
   useEffect(() => {
     refresh();
@@ -165,6 +170,11 @@ export default function Licences() {
                 style={{ cursor: "pointer", background: "transparent", border: "1px solid var(--border)", color: "var(--text)", padding: "4px 10px", fontSize: "0.75rem", borderRadius: "6px", fontWeight: "500", transition: "all 0.2s" }}
                 onMouseOver={e => e.currentTarget.style.background = "var(--surface2)"} onMouseOut={e => e.currentTarget.style.background = "transparent"}
               >Days</button>
+
+              <button 
+                onClick={() => { setMsgKey(lic.key); setMsgAppId(lic.appId); setMsgValue(lic.customMessage || ""); setMsgOpen(true); }}
+                style={{ cursor: "pointer", background: "transparent", border: "1px solid var(--border)", color: "var(--accent)", padding: "4px 10px", fontSize: "0.75rem", borderRadius: "6px", fontWeight: "500" }}
+              >Msg</button>
               
               {lic.Status === "ban" ? (
                 <button onClick={() => action("Unban", banUnbanLicence, lic.key, lic.appId, "unban")} style={{ cursor: "pointer", background: "transparent", border: "1px solid var(--border)", color: "var(--success, #10b981)", padding: "4px 10px", fontSize: "0.75rem", borderRadius: "6px", fontWeight: "500" }}>Unban</button>
@@ -217,6 +227,35 @@ export default function Licences() {
                     showStatus("Enter a valid number greater than 0", "error");
                   }
                 }}>Confirm Modification</Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {msgOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} onClick={() => setMsgOpen(false)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} transition={{ duration: 0.2 }} style={{ position: "relative", width: "100%", maxWidth: "420px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
+              <div style={{ padding: "24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+                <h2 style={{ fontSize: "1.05rem", fontWeight: "700", color: "var(--text)", margin: 0 }}>Send Custom Message</h2>
+              </div>
+              <div style={{ padding: "24px" }}>
+                <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginBottom: "16px", lineHeight: 1.5 }}>This message will be displayed to the user currently using this licence key. Leave empty to clear.</p>
+                <textarea 
+                  placeholder="e.g. Please update your software version..." 
+                  value={msgValue} 
+                  onChange={e => setMsgValue(e.target.value)}
+                  style={{ width: "100%", height: "100px", padding: "12px", borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)", resize: "none", outline: "none", fontSize: "0.95rem" }}
+                />
+              </div>
+              <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+                <Button variant="ghost" onClick={() => setMsgOpen(false)}>Cancel</Button>
+                <Button variant="primary" onClick={() => { 
+                  action("Send Message", sendLicenceMessage, msgKey, msgAppId, msgValue);
+                  setMsgOpen(false);
+                }}>Transmit Message</Button>
               </div>
             </motion.div>
           </div>

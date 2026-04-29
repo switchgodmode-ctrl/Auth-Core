@@ -46,6 +46,14 @@ namespace AuthCore.ConsoleExample
                         bool status = dict.ContainsKey("status") && Convert.ToBoolean(dict["status"]);
                         bool active = dict.ContainsKey("active") && Convert.ToBoolean(dict["active"]);
                         string currentStatus = dict.ContainsKey("currentStatus") && dict["currentStatus"] != null ? dict["currentStatus"].ToString() : "";
+                        string customMessage = dict.ContainsKey("customMessage") && dict["customMessage"] != null ? dict["customMessage"].ToString() : "";
+
+                        if (!string.IsNullOrEmpty(customMessage))
+                        {
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine(string.Format("\n[ADMIN MESSAGE] {0}", customMessage));
+                            Console.ResetColor();
+                        }
 
                         if (status && !active && currentStatus == "killed")
                         {

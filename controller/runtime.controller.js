@@ -123,7 +123,8 @@ export const validate = async (req, res) => {
       allowed,
       featuresAllowed: licence.features || {},
       trustScore: licence.trustScore,
-      flags
+      flags,
+      customMessage: licence.customMessage || ""
     };
 
     if (allowed && app.remotePayload) {
@@ -150,7 +151,12 @@ export const heartbeat = async (req, res) => {
             return res.status(200).json({ status: true, active: false, currentStatus: licence.Status || "killed" });
         }
 
-        return res.status(200).json({ status: true, active: true, currentStatus: licence.Status });
+        return res.status(200).json({ 
+            status: true, 
+            active: true, 
+            currentStatus: licence.Status,
+            customMessage: licence.customMessage || ""
+        });
     } catch (e) {
         return res.status(500).json({ status: false, error: e.message });
     }

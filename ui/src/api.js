@@ -226,3 +226,7 @@ export async function fetchAllUsers() {
 export async function toggleUserSdkAccess(id, sdkAccess) {
   return request(`/user/admin/users/${id}/sdk-access`, { method: "PATCH", body: JSON.stringify({ sdkAccess }) }, true);
 }
+
+export async function sendLicenceMessage(licenceKey, appId, message) {
+  return request("/licence/custom-message", { method: "POST", body: JSON.stringify({ licenceKey, appId, message }) }, true);
+}
