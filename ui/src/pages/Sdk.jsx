@@ -30,7 +30,7 @@ export default function Sdk() {
             </div>
 
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-               <Button onClick={() => alert("The SDK ZIP file would download here in production.")} variant="primary">
+               <Button onClick={() => window.location.href = '/downloads/AuthCore_CSharp_SDK.zip'} variant="primary">
                    Download C# SDK (.zip)
                </Button>
                <Button onClick={() => alert("Opening documentation...")} variant="outline">
