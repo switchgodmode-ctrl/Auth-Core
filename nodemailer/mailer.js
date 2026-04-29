@@ -42,8 +42,15 @@ async function sendMail(email, link, type = "verify") {
    }
 
    const isVerify = type === "verify";
-   const subject = isVerify ? 'Verify Your Auth Account' : 'Reset Your Auth Password';
-   const actionText = isVerify ? 'Verify Email Address' : 'Reset Password';
+   const isReset = type === "reset";
+   const isInvoice = type === "invoice";
+   
+   let subject = 'Auth Platform Notification';
+   if (isVerify) subject = 'Verify Your Auth Account';
+   if (isReset) subject = 'Reset Your Auth Password';
+   if (isInvoice) subject = 'Your Payment Invoice - Auth Platform';
+
+   const actionText = isVerify ? 'Verify Email Address' : (isReset ? 'Reset Password' : 'View Invoice');
    
    let mailOptions = {
      from: `"Auth Platform" <${user}>`,
@@ -61,12 +68,14 @@ async function sendMail(email, link, type = "verify") {
             <tr>
               <td>
                 <h2 style="color:#111827; margin-bottom:10px;">
-                  ${isVerify ? 'Welcome to' : 'Password Support for'} <strong>Auth</strong> 🚀
+                  ${isInvoice ? 'Payment Successful! 🎉' : (isVerify ? 'Welcome to' : 'Password Support for')} <strong>Auth</strong> 🚀
                 </h2>
                 <p style="color:#374151; font-size:15px;">
-                  ${isVerify
-                    ? 'Thank you for creating an account with <strong>Auth</strong>. To activate your account and access the dashboard, please verify your email address.'
-                    : 'You requested to reset your password. Click the button below to set a new password.'}
+                  ${isInvoice 
+                    ? 'Thank you for your purchase. Your payment has been successfully processed and your account plan has been updated.' 
+                    : (isVerify
+                      ? 'Thank you for creating an account with <strong>Auth</strong>. To activate your account and access the dashboard, please verify your email address.'
+                      : 'You requested to reset your password. Click the button below to set a new password.')}
                 </p>
                 <div style="margin: 30px 0; text-align:center;">
                   <a href="${link}"
@@ -74,6 +83,7 @@ async function sendMail(email, link, type = "verify") {
                     ${actionText}
                   </a>
                 </div>
+                ${isInvoice ? '<p style="color:#6b7280; font-size:13px; text-align:center;">Click the button above to download your PDF invoice.</p>' : ''}
                 <hr style="border:none; border-top:1px solid #e5e7eb; margin:30px 0;"/>
                 <p style="color:#374151; font-size:14px;"><strong>Email:</strong> ${email}</p>
                 <p style="margin-top:40px; color:#374151; font-size:14px;">Regards,<br/><strong>Auth Security Team</strong></p>

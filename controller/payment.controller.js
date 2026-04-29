@@ -1,6 +1,8 @@
 import "../module/connection.js";
 import crypto from "crypto";
 import Razorpay from "razorpay";
+import jwt from "jsonwebtoken";
+import sendMail from "../nodemailer/mailer.js";
 import PaymentModule from "../module/payment.module.js";
 import UserSchemaModule from "../module/user.module.js";
 
@@ -133,6 +135,16 @@ export const verifyPayment = async (req, res) => {
     if (user) {
       user.plan = payment.planTarget || "Premium";
       await user.save();
+
+      // SEND INVOICE EMAIL
+      try {
+        const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET || "dev_secret", { expiresIn: "1h" });
+        const baseUrl = process.env.APP_BASE_URL || "https://auth-core-sz7p.vercel.app";
+        const invoiceLink = `${baseUrl}/user/download-invoice?paymentId=${payment._id}&token=${token}`;
+        await sendMail(user.email, invoiceLink, "invoice");
+      } catch (mailErr) {
+        console.error("Failed to send invoice email:", mailErr);
+      }
     }
     res.status(200).json({ status: true });
   } catch (error) {
