@@ -511,59 +511,83 @@ export const getAdminStats = async (req, res) => {
 
         const user = await UserSchemaModule.findOne({ _id: Number(payment.userId) });
 
-        const doc = new PDFDocument({ margin: 50 });
+        const doc = new PDFDocument({ size: "A4", margin: 40 });
         let filename = `invoice-${paymentId}.pdf`;
         
         res.setHeader('Content-disposition', 'attachment; filename="' + filename + '"');
         res.setHeader('Content-type', 'application/pdf');
 
-        // --- HEADER ---
-        doc.fillColor("#444444").fontSize(20).text("AUTH PLATFORM", 50, 57);
-        doc.fillColor("#444444").fontSize(10).text("switchgodmode@gmail.com", 200, 65, { align: "right" });
-        doc.text("Ahmedabad, Gujarat, India", 200, 80, { align: "right" });
-        doc.moveDown();
+        // --- TOP BLUE BAR & LOGO ---
+        doc.rect(0, 0, 600, 80).fill("#1e293b");
+        doc.fillColor("#ffffff").fontSize(24).text("AUTH CORE", 40, 30, { characterSpacing: 2 });
+        doc.fontSize(10).text("PREMIUM SERVICES BILL", 40, 58, { characterSpacing: 1 });
+        
+        doc.fillColor("#ffffff").fontSize(10).text("switchgodmode@gmail.com", 350, 30, { align: "right" });
+        doc.text("Ahmedabad, Gujarat, India", 350, 45, { align: "right" });
+        doc.text("GSTIN: 24AAACN1234A1Z5", 350, 60, { align: "right" });
 
-        // --- DIVIDER ---
-        doc.strokeColor("#eeeeee").lineWidth(1).moveTo(50, 100).lineTo(550, 100).stroke();
+        // --- INVOICE INFO BOX ---
+        let infoTop = 100;
+        doc.fillColor("#f8fafc").rect(40, infoTop, 250, 80).fill();
+        doc.fillColor("#1e293b").fontSize(12).text("INVOICE TO:", 50, infoTop + 10);
+        doc.fillColor("#475569").fontSize(10).text(user.username || "Valued Customer", 50, infoTop + 30);
+        doc.text(user.email, 50, infoTop + 45);
+        doc.text("Payment Mode: Razorpay Online", 50, infoTop + 60);
 
-        // --- BILL TO ---
-        doc.fillColor("#444444").fontSize(14).text("Invoice", 50, 120);
-        doc.fontSize(10).text(`Invoice Number: INV-${paymentId}`, 50, 140);
-        doc.text(`Invoice Date: ${new Date(payment.createdAt).toLocaleDateString()}`, 50, 155);
-        doc.text(`Payment Status: ${payment.status.toUpperCase()}`, 50, 170);
-
-        doc.fontSize(12).text("Bill To:", 350, 120);
-        doc.fontSize(10).text(user.username || "Customer", 350, 140);
-        doc.text(user.email, 350, 155);
+        doc.fillColor("#f8fafc").rect(305, infoTop, 250, 80).fill();
+        doc.fillColor("#1e293b").fontSize(12).text("BILLING DETAILS:", 315, infoTop + 10);
+        doc.fillColor("#475569").fontSize(10).text(`Invoice No: #AUTH-${paymentId}`, 315, infoTop + 30);
+        doc.text(`Date: ${new Date(payment.createdAt).toLocaleDateString()}`, 315, infoTop + 45);
+        doc.text(`Status: PAID SUCCESSFUL`, 315, infoTop + 60);
 
         // --- TABLE HEADER ---
-        let tableTop = 230;
-        doc.fillColor("#f6f6f6").rect(50, tableTop, 500, 25).fill();
-        doc.fillColor("#444444").fontSize(10).text("Description", 60, tableTop + 8);
-        doc.text("Currency", 300, tableTop + 8);
-        doc.text("Amount", 450, tableTop + 8, { align: "right" });
+        let tableTop = 210;
+        doc.fillColor("#1e293b").rect(40, tableTop, 515, 25).fill();
+        doc.fillColor("#ffffff").fontSize(10).text("SL.", 50, tableTop + 8);
+        doc.text("ITEM DESCRIPTION", 100, tableTop + 8);
+        doc.text("QTY", 350, tableTop + 8);
+        doc.text("PRICE", 400, tableTop + 8);
+        doc.text("TOTAL", 480, tableTop + 8, { align: "right" });
 
-        // --- TABLE ROW ---
-        let rowTop = tableTop + 35;
-        doc.text(`${payment.planTarget} Subscription Package`, 60, rowTop);
-        doc.text(payment.currency, 300, rowTop);
-        doc.text(`${payment.amount / 100}.00`, 450, rowTop, { align: "right" });
+        // --- TABLE ROWS ---
+        let rowTop = tableTop + 25;
+        doc.fillColor("#475569").fontSize(10);
+        
+        // Row 1
+        doc.rect(40, rowTop, 515, 30).strokeColor("#e2e8f0").lineWidth(0.5).stroke();
+        doc.text("01", 50, rowTop + 10);
+        doc.text(`${payment.planTarget} Subscription - 1 Month Access`, 100, rowTop + 10);
+        doc.text("1", 350, rowTop + 10);
+        doc.text(`${payment.amount / 100}.00`, 400, rowTop + 10);
+        doc.text(`${payment.amount / 100}.00`, 480, rowTop + 10, { align: "right" });
 
-        doc.strokeColor("#eeeeee").lineWidth(1).moveTo(50, rowTop + 20).lineTo(550, rowTop + 20).stroke();
+        // --- SUMMARY BOX ---
+        let summaryTop = rowTop + 50;
+        doc.fillColor("#475569").fontSize(10).text("Sub Total:", 380, summaryTop);
+        doc.text(`${payment.currency} ${payment.amount / 100}.00`, 480, summaryTop, { align: "right" });
+        
+        doc.text("Tax (GST 0%):", 380, summaryTop + 15);
+        doc.text("0.00", 480, summaryTop + 15, { align: "right" });
 
-        // --- TOTAL ---
-        doc.fontSize(12).text("Total Amount Paid:", 350, rowTop + 50);
-        doc.fontSize(12).fillColor("#2563eb").text(`${payment.currency} ${payment.amount / 100}.00`, 450, rowTop + 50, { align: "right" });
+        doc.rect(370, summaryTop + 35, 185, 30).fill("#1e293b");
+        doc.fillColor("#ffffff").fontSize(12).text("NET PAYABLE:", 380, summaryTop + 43);
+        doc.text(`${payment.currency} ${payment.amount / 100}.00`, 480, summaryTop + 43, { align: "right" });
 
-        // --- TERMS & POLICY ---
-        doc.fillColor("#444444").fontSize(12).text("Terms & Conditions", 50, 550);
-        doc.fontSize(8).text("1. This is a computer generated invoice and does not require a physical signature.", 50, 570);
-        doc.text("2. Subscription plans are non-refundable once activated.", 50, 582);
-        doc.text("3. The services are provided as-is under the AuthCore usage policy.", 50, 594);
-        doc.text("4. For any billing queries, please contact switchgodmode@gmail.com.", 50, 606);
+        // --- TERMS ---
+        doc.fillColor("#1e293b").fontSize(12).text("Terms & Conditions:", 40, 500);
+        doc.fillColor("#64748b").fontSize(8);
+        const terms = [
+            "1. This is a digital invoice and does not require a physical signature.",
+            "2. Subscription fees are non-refundable once the premium features are activated.",
+            "3. Access to premium tools is valid for the duration specified in the plan.",
+            "4. For technical support or billing disputes, contact: switchgodmode@gmail.com",
+            "5. All disputes are subject to Ahmedabad jurisdiction only."
+        ];
+        terms.forEach((t, i) => doc.text(t, 40, 520 + (i * 12)));
 
-        // --- FOOTER ---
-        doc.fontSize(10).fillColor("#999999").text("Thank you for using Auth Platform!", 50, 720, { align: "center", width: 500 });
+        // --- FINAL FOOTER ---
+        doc.strokeColor("#cbd5e1").lineWidth(1).moveTo(40, 750).lineTo(555, 750).stroke();
+        doc.fillColor("#94a3b8").fontSize(9).text("THANK YOU FOR CHOOSING AUTH CORE PLATFORM", 40, 765, { align: "center", width: 515 });
 
         doc.pipe(res);
         doc.end();
