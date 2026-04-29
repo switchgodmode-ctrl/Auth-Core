@@ -48,7 +48,7 @@ export default function Payments() {
     setStatus("Creating order...");
     const uid = String(getUserIdFromToken() || "");
     // price update from here 
-    const amount = billing === "monthly" ? 500 : 5000;
+    const amount = billing === "monthly" ? 5 : 50;
     const r = await createOrder(Number(uid), amount);
     if (!r?.status) {
       setStatus(r.error || "Failed to create order");

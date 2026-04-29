@@ -59,14 +59,14 @@ export async function register(username, email, password, plan = "Free", referre
 }
 
 export async function createOrder(userId, amount) {
-  return request("/payment/order", { method: "POST", body: JSON.stringify({ userId, amount, currency: "INR", planTarget: "Premium" }) });
+  return request("/payment/order", { method: "POST", body: JSON.stringify({ userId, amount, currency: "INR", planTarget: "Premium" }) }, true);
 }
 
 export async function verifyPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature) {
   return request("/payment/verify", {
     method: "POST",
     body: JSON.stringify({ razorpay_order_id, razorpay_payment_id, razorpay_signature })
-  });
+  }, true);
 }
 
 export async function runtimeValidate(payload) {
