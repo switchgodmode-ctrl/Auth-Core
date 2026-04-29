@@ -659,3 +659,22 @@ export const toggleSdkAccess = async (req, res) => {
         res.status(500).json({ status: false, error: error.message });
     }
 };
+
+export const toggleUserStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        
+        const user = await UserSchemaModule.findOne({ _id: id });
+        if (!user) {
+            return res.status(404).json({ status: false, message: "User not found" });
+        }
+        
+        user.status = status;
+        await user.save();
+        
+        res.status(200).json({ status: true, message: "User status updated successfully", newStatus: user.status });
+    } catch (error) {
+        res.status(500).json({ status: false, error: error.message });
+    }
+};

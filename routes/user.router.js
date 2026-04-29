@@ -27,5 +27,6 @@ router.post("/logout-device", requireAuth, UserControler.logoutDevice);
 router.get("/admin/stats", requireAdmin, UserControler.getAdminStats);
 router.get("/admin/users", requireAdmin, UserControler.getAllUsers);
 router.patch("/admin/users/:id/sdk-access", requireAdmin, UserControler.toggleSdkAccess);
+router.patch("/admin/users/:id/status", requireAdmin, UserControler.toggleUserStatus);
 router.get("/download-invoice", requireAuth, UserControler.downloadInvoice);
 export default router;

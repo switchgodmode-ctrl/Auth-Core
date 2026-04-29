@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { fetchAllUsers, toggleUserSdkAccess } from '../api';
+import { fetchAllUsers, toggleUserSdkAccess, toggleUserStatus } from '../api';
 import Card from '../components/ui/Card';
 import './dashboard.css';
 
@@ -37,115 +37,155 @@ const UserManagement = () => {
     }
   };
 
+  const handleToggleStatus = async (id, currentStatus) => {
+    const newStatus = currentStatus === 1 ? 0 : 1;
+    try {
+      const res = await toggleUserStatus(id, newStatus);
+      if (res.status) {
+        setUsers(users.map(u => u._id === id ? { ...u, status: newStatus } : u));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const filteredUsers = users.filter(u => 
-    u.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
     u.username?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) {
-    return (
-      <div style={{ display: 'grid', placeItems: 'center', height: '80vh', color: 'var(--muted)' }}>
-        <div className="loading-spinner"></div>
-        <p style={{ marginTop: '16px', fontWeight: 600 }}>Loading User Directory...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="db-content animate-fade-in">
-      <header className="db-page-head">
+    <div className="db-content animate-fade-in" style={{ padding: '0', maxWidth: '100%' }}>
+      <header className="db-header-main" style={{ marginBottom: '32px' }}>
         <div>
-          <h1 className="db-page-title">User Management</h1>
-          <p className="db-page-sub">Manage platform permissions, SDK access, and user accounts.</p>
+          <h1 className="db-title" style={{ fontSize: '2.5rem', fontWeight: 800 }}>User Management</h1>
+          <p className="db-subtitle">Advanced administrative controls for platform users and developers.</p>
         </div>
-        <div className="dash-search" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          </span>
-          <input
-            placeholder="Search by email or username..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="db-actions">
+          <div className="db-search-bar" style={{ background: 'var(--surface2)', borderRadius: '12px', padding: '10px 20px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', minWidth: '400px' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--muted)', marginRight: '12px' }}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input 
+              type="text" 
+              placeholder="Search by email, username, or ID..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ background: 'none', border: 'none', color: 'var(--text)', outline: 'none', width: '100%', fontSize: '1rem' }}
+            />
+          </div>
         </div>
       </header>
 
-      <div style={{ marginTop: '24px' }}>
-        <Card title="Player & Developer Directory" subtitle={`${filteredUsers.length} users found in the system`}>
-          <div className="table-container" style={{ marginTop: '20px' }}>
-            <table className="data-table">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Card noPadding style={{ border: 'none', background: 'var(--surface2)', overflow: 'hidden' }}>
+          <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Player & Developer Directory</h2>
+             <div style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>
+                Showing <strong>{filteredUsers.length}</strong> users found in system
+             </div>
+          </div>
+          
+          <div style={{ overflowX: 'auto' }}>
+            <table className="db-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>User Details</th>
-                  <th>Plan Status</th>
-                  <th>Verification</th>
-                  <th>SDK Access</th>
-                  <th>Actions</th>
+                  <th style={{ padding: '20px 24px', textAlign: 'left', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>ID</th>
+                  <th style={{ padding: '20px 24px', textAlign: 'left', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>User Details</th>
+                  <th style={{ padding: '20px 24px', textAlign: 'left', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plan Status</th>
+                  <th style={{ padding: '20px 24px', textAlign: 'left', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Status</th>
+                  <th style={{ padding: '20px 24px', textAlign: 'left', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>User Since</th>
+                  <th style={{ padding: '20px 24px', textAlign: 'left', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>SDK Access</th>
+                  <th style={{ padding: '20px 24px', textAlign: 'right', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.map((user) => (
-                  <tr key={user._id}>
-                    <td style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>#{String(user._id || '').substring(0, 8)}...</td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent2)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}>
-                          {user.username?.[0]?.toUpperCase() || 'U'}
+                  <tr key={user._id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }} className="table-row-hover">
+                    <td style={{ padding: '20px 24px', color: 'var(--muted)', fontSize: '0.85rem', fontFamily: 'monospace' }}>#{String(user._id || '').substring(0, 8)}</td>
+                    <td style={{ padding: '20px 24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{ width: 42, height: 42, borderRadius: '12px', background: 'linear-gradient(135deg, var(--accent), var(--accent2))', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '1rem', fontWeight: 700, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                          {user.username?.charAt(0).toUpperCase() || 'U'}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 600, color: 'var(--text)' }}>{user.username || 'Anonymous'}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{user.email}</div>
+                          <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '1rem' }}>{user.username || 'Anonymous'}</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>{user.email}</div>
                         </div>
                       </div>
                     </td>
-                    <td>
-                      <span style={{
-                        padding: '4px 10px',
-                        borderRadius: '20px',
-                        fontSize: '0.7rem',
+                    <td style={{ padding: '20px 24px' }}>
+                      <span style={{ 
+                        padding: '6px 12px', 
+                        borderRadius: '8px', 
+                        fontSize: '0.75rem', 
                         fontWeight: 700,
                         textTransform: 'uppercase',
-                        letterSpacing: '0.02em',
-                        backgroundColor: user.plan === 'Free' ? 'rgba(100,116,139,0.15)' : 'rgba(99,102,241,0.15)',
-                        color: user.plan === 'Free' ? '#94a3b8' : 'var(--accent)',
-                        border: `1px solid ${user.plan === 'Free' ? 'rgba(100,116,139,0.1)' : 'rgba(99,102,241,0.2)'}`
+                        background: user.plan === 'Premium' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(100, 116, 139, 0.1)',
+                        color: user.plan === 'Premium' ? '#f59e0b' : '#64748b',
+                        border: user.plan === 'Premium' ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(100, 116, 139, 0.2)'
                       }}>
                         {user.plan}
                       </span>
                     </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: user.status === 1 ? '#10b981' : '#f59e0b' }}></div>
-                        {user.status === 1 ? 'Verified' : 'Pending'}
-                      </div>
-                    </td>
-                    <td>
+                    <td style={{ padding: '20px 24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                         <span style={{ fontSize: '0.8rem', color: user.sdkAccess ? 'var(--green)' : 'var(--muted)' }}>
-                            {user.sdkAccess ? 'Enabled' : 'Disabled'}
-                         </span>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: user.status === 1 ? '#10b981' : '#ef4444' }}></div>
+                        <span style={{ fontWeight: 600, color: user.status === 1 ? '#10b981' : '#ef4444', fontSize: '0.9rem' }}>
+                          {user.status === 1 ? 'Active' : 'Blocked'}
+                        </span>
                       </div>
                     </td>
-                    <td>
-                      <button 
-                        onClick={() => handleToggleSdk(user._id, user.sdkAccess)}
-                        style={{
-                          padding: '6px 14px',
-                          borderRadius: '8px',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          border: '1px solid var(--border)',
-                          cursor: 'pointer',
-                          backgroundColor: user.sdkAccess ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                          color: user.sdkAccess ? '#ef4444' : '#10b981',
-                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-                        }}
-                        onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
-                        onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
-                      >
-                        {user.sdkAccess ? 'Revoke SDK' : 'Grant SDK'}
-                      </button>
+                    <td style={{ padding: '20px 24px', color: 'var(--muted)', fontSize: '0.9rem' }}>
+                      {user.info ? new Date(user.info).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td style={{ padding: '20px 24px' }}>
+                       <span style={{ 
+                         fontSize: '0.85rem', 
+                         fontWeight: 600, 
+                         color: user.sdkAccess ? 'var(--accent)' : 'var(--muted)' 
+                       }}>
+                         {user.sdkAccess ? 'Enabled' : 'Disabled'}
+                       </span>
+                    </td>
+                    <td style={{ padding: '20px 24px', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button 
+                          onClick={() => handleToggleStatus(user._id, user.status)}
+                          style={{ 
+                            padding: '8px 16px', 
+                            borderRadius: '8px', 
+                            border: '1px solid var(--border)', 
+                            background: 'transparent', 
+                            color: 'var(--text)',
+                            fontSize: '0.85rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          className="btn-hover-surface"
+                        >
+                          {user.status === 1 ? 'Block' : 'Unblock'}
+                        </button>
+                        <button 
+                          onClick={() => handleToggleSdk(user._id, user.sdkAccess)}
+                          style={{ 
+                            padding: '8px 16px', 
+                            borderRadius: '8px', 
+                            border: 'none', 
+                            background: user.sdkAccess ? 'rgba(239, 68, 68, 0.1)' : 'rgba(99, 102, 241, 0.1)', 
+                            color: user.sdkAccess ? '#ef4444' : 'var(--accent)',
+                            fontSize: '0.85rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {user.sdkAccess ? 'Revoke SDK' : 'Grant SDK'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -153,7 +193,7 @@ const UserManagement = () => {
             </table>
           </div>
         </Card>
-      </div>
+      </motion.div>
     </div>
   );
 };
