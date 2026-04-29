@@ -65,7 +65,7 @@ export default function Pricing() {
         </motion.p>
       </div>
 
-      <div className="rt-wrap rt-pricing" style={{ marginBottom: "80px" }}>
+      <div className="rt-wrap rt-pricing" style={{ marginBottom: "80px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "32px" }}>
         {/* Basic */}
         <motion.div className="rt-price-card" initial="hidden" animate="show" custom={2} variants={fadeUp}>
           <div className="rt-price-tier">Basic</div>
@@ -83,40 +83,69 @@ export default function Pricing() {
           </NavLink>
         </motion.div>
 
-        {/* Pro */}
-        <motion.div className="rt-price-card featured" initial="hidden" animate="show" custom={3} variants={fadeUp}>
-          <div className="rt-price-badge">Most Popular</div>
-          <div className="rt-price-tier">Pro</div>
-          {/* price update from here */}
-          <div className="rt-price-amount"><sup>₹</sup>50</div>
-          <div className="rt-price-cycle">per year · billed annually</div>
+        {/* Pro Monthly */}
+        <motion.div className="rt-price-card" initial="hidden" animate="show" custom={3} variants={fadeUp}>
+          <div className="rt-price-tier">Pro Monthly</div>
+          <div className="rt-price-amount"><sup>₹</sup>699</div>
+          <div className="rt-price-cycle">per month · billed monthly</div>
           <div className="rt-price-divider" />
           <ul className="rt-price-features">
             <li>Unlimited API requests</li>
             <li>Unlimited applications</li>
             <li>Custom edge security rules</li>
-            <li>Advanced fraud analytics</li>
             <li>Priority email support</li>
+            <li>Advanced fraud analytics</li>
           </ul>
-          <Button variant="primary" className="w-full" onClick={() => startCheckout(5000, "Pro")} style={{ marginTop: 'auto' }}>Upgrade to Pro</Button>
+          <Button variant="primary" className="w-full" onClick={() => startCheckout(69900, "Pro Monthly")} style={{ marginTop: 'auto' }}>Upgrade Monthly</Button>
         </motion.div>
 
-        {/* Enterprise */}
-        <motion.div className="rt-price-card" initial="hidden" animate="show" custom={4} variants={fadeUp}>
-          <div className="rt-price-tier">Enterprise</div>
-          <div className="rt-price-amount">Custom</div>
-          <div className="rt-price-cycle">Contact sales for volume pricing</div>
+        {/* Pro Yearly */}
+        <motion.div className="rt-price-card featured" initial="hidden" animate="show" custom={4} variants={fadeUp}>
+          <div className="rt-price-badge">Best Value</div>
+          <div className="rt-price-tier">Pro Yearly</div>
+          <div className="rt-price-amount"><sup>₹</sup>2000</div>
+          <div className="rt-price-cycle">per year · billed annually</div>
           <div className="rt-price-divider" />
           <ul className="rt-price-features">
-            <li>Everything in Pro</li>
-            <li>99.99% Uptime SLA</li>
-            <li>Dedicated API clusters</li>
-            <li>SSO (SAML, OIDC)</li>
-            <li>Dedicated account manager</li>
+            <li>Everything in Pro Monthly</li>
+            <li>Save over ₹6,000 annually</li>
+            <li>99.9% Uptime SLA</li>
+            <li>Priority 24/7 Support</li>
           </ul>
-          <NavLink to="/support" style={{ textDecoration: 'none' }}>
-            <Button variant="ghost" className="w-full" style={{ marginTop: 'auto' }}>Contact Sales</Button>
-          </NavLink>
+          <Button variant="primary" className="w-full" onClick={() => startCheckout(200000, "Pro Yearly")} style={{ marginTop: 'auto' }}>Upgrade Yearly</Button>
+        </motion.div>
+
+        {/* Custom Duration */}
+        <motion.div className="rt-price-card" initial="hidden" animate="show" custom={5} variants={fadeUp}>
+          <div className="rt-price-tier">Custom Plan</div>
+          <div style={{ margin: "16px 0" }}>
+             <label style={{ fontSize: "0.8rem", color: "var(--muted)" }}>Enter number of months:</label>
+             <input 
+                type="number" 
+                min="1" 
+                max="60"
+                id="customMonths"
+                defaultValue="3"
+                style={{ width: "100%", padding: "10px", borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)", color: "#fff", marginTop: "8px", outline: "none" }}
+                onChange={(e) => {
+                  const val = Number(e.target.value) || 0;
+                  const price = val * 500; // Custom discount rate: 500/mo
+                  document.getElementById("customPrice").innerText = "₹" + price;
+                }}
+             />
+          </div>
+          <div className="rt-price-amount" id="customPrice">₹1500</div>
+          <div className="rt-price-cycle">Flexible billing @ ₹500/mo</div>
+          <div className="rt-price-divider" />
+          <ul className="rt-price-features">
+            <li>Pay exactly for what you need</li>
+            <li>Unlimited everything</li>
+            <li>Select up to 5 years</li>
+          </ul>
+          <Button variant="secondary" className="w-full" onClick={() => {
+             const val = Number(document.getElementById("customMonths").value) || 3;
+             startCheckout(val * 50000, `Pro Custom (${val} Months)`);
+          }} style={{ marginTop: 'auto' }}>Buy Custom Plan</Button>
         </motion.div>
       </div>
 

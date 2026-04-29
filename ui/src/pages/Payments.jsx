@@ -7,6 +7,7 @@ import Button from "../components/ui/Button.jsx";
 export default function Payments() {
   const [status, setStatus] = useState("");
   const [billing, setBilling] = useState("monthly");
+  const [customMonths, setCustomMonths] = useState(3);
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
@@ -47,8 +48,11 @@ export default function Payments() {
   async function submit() {
     setStatus("Creating order...");
     const uid = String(getUserIdFromToken() || "");
-    // price update from here 
-    const amount = billing === "monthly" ? 5 : 50;
+    let amount = 0;
+    if (billing === "monthly") amount = 699;
+    else if (billing === "yearly") amount = 2000;
+    else amount = customMonths * 500;
+
     const r = await createOrder(Number(uid), amount);
     if (!r?.status) {
       setStatus(r.error || "Failed to create order");
@@ -98,7 +102,6 @@ export default function Payments() {
   return (
     <div style={{ maxWidth: "1200px", display: "flex", flexDirection: "column", gap: "24px", paddingBottom: "40px" }}>
       
-      {/* Header */}
       <div className="db-page-head">
         <div>
           <h1 className="db-page-title">Billing & Premium</h1>
@@ -107,8 +110,7 @@ export default function Payments() {
       </div>
 
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-        <Card glow>
-          {/* Header & Toggle */}
+        <Card glowing>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px", flexWrap: "wrap", gap: "16px" }}>
             <div style={{ fontWeight: 700, fontSize: "1.3rem", color: "var(--text)" }}>Select Plan</div>
             <div style={{ display: "flex", background: "var(--bg)", padding: "4px", borderRadius: "100px", border: "1px solid var(--border)" }}>
@@ -117,8 +119,7 @@ export default function Payments() {
                   background: billing === "monthly" ? "var(--surface)" : "transparent",
                   color: billing === "monthly" ? "var(--text)" : "var(--muted)",
                   border: billing === "monthly" ? "1px solid var(--border)" : "1px solid transparent",
-                  boxShadow: billing === "monthly" ? "0 4px 12px rgba(0,0,0,0.1)" : "none",
-                  padding: "6px 16px", borderRadius: "100px", fontSize: "0.85rem", fontWeight: "600", cursor: "pointer", transition: "all 0.2s"
+                  padding: "6px 16px", borderRadius: "100px", fontSize: "0.85rem", fontWeight: "600", cursor: "pointer"
                 }}
                 onClick={() => setBilling("monthly")}
               >
@@ -129,94 +130,81 @@ export default function Payments() {
                   background: billing === "yearly" ? "var(--surface)" : "transparent",
                   color: billing === "yearly" ? "var(--text)" : "var(--muted)",
                   border: billing === "yearly" ? "1px solid var(--border)" : "1px solid transparent",
-                  boxShadow: billing === "yearly" ? "0 4px 12px rgba(0,0,0,0.1)" : "none",
-                  padding: "6px 16px", borderRadius: "100px", fontSize: "0.85rem", fontWeight: "600", cursor: "pointer", transition: "all 0.2s",
-                  display: "flex", alignItems: "center", gap: "6px"
+                  padding: "6px 16px", borderRadius: "100px", fontSize: "0.85rem", fontWeight: "600", cursor: "pointer"
                 }}
                 onClick={() => setBilling("yearly")}
               >
-                Yearly 
-                <span style={{ color: "var(--success, #10b981)", fontSize: "0.7rem", background: "rgba(16,185,129,0.1)", padding: "2px 6px", borderRadius: "100px" }}>Save 20%</span>
+                Yearly
+              </button>
+              <button 
+                style={{ 
+                  background: billing === "custom" ? "var(--surface)" : "transparent",
+                  color: billing === "custom" ? "var(--text)" : "var(--muted)",
+                  border: billing === "custom" ? "1px solid var(--border)" : "1px solid transparent",
+                  padding: "6px 16px", borderRadius: "100px", fontSize: "0.85rem", fontWeight: "600", cursor: "pointer"
+                }}
+                onClick={() => setBilling("custom")}
+              >
+                Custom
               </button>
             </div>
           </div>
-          
+
           {status && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} style={{ marginBottom: "24px" }}>
-              <div style={{ padding: "12px 16px", borderRadius: "8px", background: "rgba(99, 102, 241, 0.1)", color: "var(--accent)", border: "1px solid rgba(99, 102, 241, 0.2)", fontSize: "0.9rem", fontWeight: "600" }}>
-                {status}
-              </div>
-            </motion.div>
+            <div style={{ marginBottom: "24px", padding: "12px 16px", borderRadius: "8px", background: "rgba(99, 102, 241, 0.1)", color: "var(--accent)", border: "1px solid rgba(99, 102, 241, 0.2)", fontSize: "0.9rem", fontWeight: "600" }}>
+              {status}
+            </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "32px", alignItems: "start" }}>
-            
-            {/* Upgrade Card */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "32px", alignItems: "start" }}>
             <div style={{ background: "var(--surface2)", padding: "32px", borderRadius: "16px", border: "1px solid var(--accent)", position: "relative" }}>
-              <div style={{ position: "absolute", top: -12, right: 24, background: "var(--accent)", color: "#fff", padding: "4px 12px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", boxShadow: "0 4px 12px rgba(99,102,241,0.4)" }}>Recommended</div>
-              
-              <div style={{ fontSize: "2.5rem", fontWeight: 800, marginBottom: "24px", color: "var(--text)", display: "flex", alignItems: "baseline", gap: "8px" }}>
-                {billing === "monthly" ? "₹5" : "₹50"} 
-                <span style={{ fontSize: "1rem", color: "var(--muted)", fontWeight: "500" }}>/{billing}</span>
+              <div style={{ position: "absolute", top: -12, right: 24, background: "var(--accent)", color: "#fff", padding: "4px 12px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: "700", textTransform: "uppercase" }}>Recommended</div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 800, marginBottom: "8px", color: "var(--text)" }}>
+                ₹{billing === "monthly" ? "699" : billing === "yearly" ? "2000" : (customMonths * 500)}
               </div>
-              
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "32px", fontSize: "0.95rem", color: "var(--text)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <div style={{ background: "rgba(16,185,129,0.1)", color: "var(--success, #10b981)", width: 24, height: 24, borderRadius: "50%", display: "grid", placeItems: "center" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
-                  Unlimited applications & modules
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <div style={{ background: "rgba(16,185,129,0.1)", color: "var(--success, #10b981)", width: 24, height: 24, borderRadius: "50%", display: "grid", placeItems: "center" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
-                  Unlimited licence issuance
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <div style={{ background: "rgba(16,185,129,0.1)", color: "var(--success, #10b981)", width: 24, height: 24, borderRadius: "50%", display: "grid", placeItems: "center" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
-                  Advanced runtime trust engine rules
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <div style={{ background: "rgba(16,185,129,0.1)", color: "var(--success, #10b981)", width: 24, height: 24, borderRadius: "50%", display: "grid", placeItems: "center" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
-                  Enterprise tier priority support
-                </div>
+              <div style={{ color: "var(--muted)", fontSize: "0.9rem", marginBottom: "24px" }}>
+                {billing === "monthly" ? "per month" : billing === "yearly" ? "per year" : `For ${customMonths} Months`}
               </div>
-              <Button onClick={submit} variant="primary" style={{ width: "100%", justifyContent: "center", padding: "14px" }}>Select Pro Plan</Button>
+
+              {billing === "custom" && (
+                <div style={{ marginBottom: "24px" }}>
+                  <label style={{ fontSize: "0.8rem", color: "var(--muted)", display: "block", marginBottom: "12px" }}>SELECT DURATION: {customMonths} MONTHS</label>
+                  <input 
+                    type="range" min="1" max="60" value={customMonths} 
+                    onChange={(e) => setCustomMonths(Number(e.target.value))}
+                    style={{ width: "100%", accentColor: "var(--accent)" }}
+                  />
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "32px" }}>
+                <div style={{ color: "var(--text)", fontSize: "0.95rem" }}>✓ Unlimited applications</div>
+                <div style={{ color: "var(--text)", fontSize: "0.95rem" }}>✓ Unlimited license issuance</div>
+                <div style={{ color: "var(--text)", fontSize: "0.95rem" }}>✓ Priority 24/7 Support</div>
+              </div>
+
+              <Button onClick={submit} variant="primary" style={{ width: "100%", height: "54px" }}>
+                Activate {billing === "custom" ? "Custom" : "Pro"} Plan
+              </Button>
             </div>
 
-            {/* Feature Comparison */}
-            <div>
-              <h3 style={{ fontSize: "1.2rem", marginBottom: "20px", color: "var(--text)", fontWeight: "700" }}>Free vs Premium</h3>
-              
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ padding: "16px", background: "var(--surface2)", borderRadius: "12px", border: "1px solid var(--border)" }}>
-                  <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: "700" }}>System Limits</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.95rem" }}>
-                    <span style={{ color: "var(--text)" }}>Free: <strong style={{ color: "var(--amber, #f59e0b)" }}>1 app, 10 licences</strong></span>
-                    <span style={{ color: "var(--text)" }}>Pro: <strong style={{ color: "var(--success, #10b981)" }}>Unlimited</strong></span>
-                  </div>
-                </div>
-
-                <div style={{ padding: "16px", background: "var(--surface2)", borderRadius: "12px", border: "1px solid var(--border)" }}>
-                  <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: "700" }}>Validation Engine</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.95rem" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--muted)" }}>Free</span> <span>Basic Checks</span></div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--accent)" }}>Pro</span> <span style={{ fontWeight: "700", color: "var(--text)" }}>Advanced Threat Intel</span></div>
-                  </div>
-                </div>
-
-                <div style={{ padding: "16px", background: "var(--surface2)", borderRadius: "12px", border: "1px solid var(--border)" }}>
-                  <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: "700" }}>Support Level</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.95rem" }}>
-                    <span style={{ color: "var(--text)" }}>Free: <span style={{ color: "var(--muted)" }}>Community</span></span>
-                    <span style={{ color: "var(--text)" }}>Pro: <strong style={{ color: "var(--success, #10b981)" }}>Priority SLA</strong></span>
-                  </div>
-                </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <h3 style={{ fontSize: "1.2rem", color: "var(--text)", fontWeight: "700" }}>Free vs Pro</h3>
+              <div style={{ padding: "20px", background: "var(--bg)", borderRadius: "12px", border: "1px solid var(--border)" }}>
+                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
+                    <span style={{ color: "var(--muted)" }}>Apps / Keys</span>
+                    <span style={{ color: "var(--text)" }}>Unlimited (Pro)</span>
+                 </div>
+                 <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--muted)" }}>Support</span>
+                    <span style={{ color: "var(--text)" }}>Priority (Pro)</span>
+                 </div>
               </div>
             </div>
-
           </div>
         </Card>
       </motion.div>
 
-      {/* Transaction History */}
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
         <Card title="Transaction History" subtitle="View and download your past billing invoices.">
           <div className="table-container">
@@ -237,16 +225,10 @@ export default function Payments() {
                   <tr key={idx}>
                     <td>{new Date(p.createdAt).toLocaleDateString()}</td>
                     <td>₹{p.amount / 100}</td>
-                    <td>
-                      <span className={`pill ${p.status === 'paid' ? 'pill-green' : 'pill-amber'}`}>
-                        {p.status}
-                      </span>
-                    </td>
+                    <td><span className={`pill ${p.status === 'paid' ? 'pill-green' : 'pill-amber'}`}>{p.status}</span></td>
                     <td>
                       {p.status === 'paid' ? (
-                        <Button variant="ghost" size="sm" onClick={() => handleDownloadInvoice(p._id)}>
-                          Download PDF
-                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDownloadInvoice(p._id)}>Download PDF</Button>
                       ) : '-'}
                     </td>
                   </tr>
