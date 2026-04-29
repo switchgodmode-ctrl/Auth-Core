@@ -506,30 +506,64 @@ export const getAdminStats = async (req, res) => {
 };export const downloadInvoice = async (req, res) => {
     try {
         const { paymentId } = req.query;
-        // Search by database _id since that's what's passed from UI
         const payment = await PaymentModule.findOne({ _id: Number(paymentId), status: "paid" });
         if (!payment) return res.status(404).send("Invoice not found or payment not completed");
 
         const user = await UserSchemaModule.findOne({ _id: Number(payment.userId) });
 
-        const doc = new PDFDocument();
+        const doc = new PDFDocument({ margin: 50 });
         let filename = `invoice-${paymentId}.pdf`;
         
         res.setHeader('Content-disposition', 'attachment; filename="' + filename + '"');
         res.setHeader('Content-type', 'application/pdf');
 
-        doc.fontSize(25).text('Auth Platform Invoice', 100, 80);
-        doc.fontSize(12).text(`Invoice ID: ${paymentId}`, 100, 130);
-        doc.text(`Date: ${new Date(payment.createdAt).toLocaleDateString()}`, 100, 145);
-        doc.text(`User: ${user.username} (${user.email})`, 100, 160);
-        
+        // --- HEADER ---
+        doc.fillColor("#444444").fontSize(20).text("AUTH PLATFORM", 50, 57);
+        doc.fillColor("#444444").fontSize(10).text("switchgodmode@gmail.com", 200, 65, { align: "right" });
+        doc.text("Ahmedabad, Gujarat, India", 200, 80, { align: "right" });
         doc.moveDown();
-        doc.text('--------------------------------------------------', 100, 180);
-        doc.text(`Description: ${payment.planTarget} Subscription`, 100, 200);
-        doc.text(`Amount: ${payment.currency} ${payment.amount / 100}`, 100, 215);
-        doc.text('--------------------------------------------------', 100, 230);
 
-        doc.fontSize(10).text('Thank you for your business!', 100, 260);
+        // --- DIVIDER ---
+        doc.strokeColor("#eeeeee").lineWidth(1).moveTo(50, 100).lineTo(550, 100).stroke();
+
+        // --- BILL TO ---
+        doc.fillColor("#444444").fontSize(14).text("Invoice", 50, 120);
+        doc.fontSize(10).text(`Invoice Number: INV-${paymentId}`, 50, 140);
+        doc.text(`Invoice Date: ${new Date(payment.createdAt).toLocaleDateString()}`, 50, 155);
+        doc.text(`Payment Status: ${payment.status.toUpperCase()}`, 50, 170);
+
+        doc.fontSize(12).text("Bill To:", 350, 120);
+        doc.fontSize(10).text(user.username || "Customer", 350, 140);
+        doc.text(user.email, 350, 155);
+
+        // --- TABLE HEADER ---
+        let tableTop = 230;
+        doc.fillColor("#f6f6f6").rect(50, tableTop, 500, 25).fill();
+        doc.fillColor("#444444").fontSize(10).text("Description", 60, tableTop + 8);
+        doc.text("Currency", 300, tableTop + 8);
+        doc.text("Amount", 450, tableTop + 8, { align: "right" });
+
+        // --- TABLE ROW ---
+        let rowTop = tableTop + 35;
+        doc.text(`${payment.planTarget} Subscription Package`, 60, rowTop);
+        doc.text(payment.currency, 300, rowTop);
+        doc.text(`${payment.amount / 100}.00`, 450, rowTop, { align: "right" });
+
+        doc.strokeColor("#eeeeee").lineWidth(1).moveTo(50, rowTop + 20).lineTo(550, rowTop + 20).stroke();
+
+        // --- TOTAL ---
+        doc.fontSize(12).text("Total Amount Paid:", 350, rowTop + 50);
+        doc.fontSize(12).fillColor("#2563eb").text(`${payment.currency} ${payment.amount / 100}.00`, 450, rowTop + 50, { align: "right" });
+
+        // --- TERMS & POLICY ---
+        doc.fillColor("#444444").fontSize(12).text("Terms & Conditions", 50, 550);
+        doc.fontSize(8).text("1. This is a computer generated invoice and does not require a physical signature.", 50, 570);
+        doc.text("2. Subscription plans are non-refundable once activated.", 50, 582);
+        doc.text("3. The services are provided as-is under the AuthCore usage policy.", 50, 594);
+        doc.text("4. For any billing queries, please contact switchgodmode@gmail.com.", 50, 606);
+
+        // --- FOOTER ---
+        doc.fontSize(10).fillColor("#999999").text("Thank you for using Auth Platform!", 50, 720, { align: "center", width: 500 });
 
         doc.pipe(res);
         doc.end();
