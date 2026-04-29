@@ -68,7 +68,7 @@ export default function DashboardLayout() {
         </div>
 
         <nav className="dash-nav" style={{ flex: 1 }}>
-          {localStorage.getItem("role") !== "admin" && (
+          {(localStorage.getItem("role") || "").toLowerCase() !== "admin" && (
             <>
               <div className="dash-nav-group">Overview</div>
               <NavLink to="/dashboard" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
@@ -78,7 +78,7 @@ export default function DashboardLayout() {
             </>
           )}
 
-          {localStorage.getItem("role") !== "admin" && (
+          {(localStorage.getItem("role") || "").toLowerCase() !== "admin" && (
             <>
               <div className="dash-nav-group">Core</div>
               <NavLink to="/applications" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
@@ -115,7 +115,7 @@ export default function DashboardLayout() {
             </>
           )}
 
-          {localStorage.getItem("role") !== "admin" && (
+          {(localStorage.getItem("role") || "").toLowerCase() !== "admin" && (
             <>
               <div className="dash-nav-group">Account</div>
               <NavLink to="/payments" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
@@ -129,7 +129,7 @@ export default function DashboardLayout() {
             </>
           )}
 
-          {localStorage.getItem("role") === "admin" && (
+          {(localStorage.getItem("role") || "").toLowerCase() === "admin" && (
             <>
               <div className="dash-nav-group">Admin Panel</div>
               <NavLink to="/admin/dashboard" onClick={() => setSidebarOpen(false)} className={({ isActive }) => isActive ? "active" : ""}>
@@ -143,6 +143,10 @@ export default function DashboardLayout() {
             </>
           )}
         </nav>
+
+        <div style={{ padding: '12px 24px', fontSize: '0.65rem', color: 'var(--muted)', textAlign: 'center', opacity: 0.5 }}>
+           AuthCore Admin Suite v2.1.0
+        </div>
 
         <div style={{ padding: '24px', borderTop: '1px solid var(--border)', background: 'var(--surface2)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
