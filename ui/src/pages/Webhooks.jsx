@@ -89,7 +89,7 @@ export default function Webhooks() {
             </div>
             <div>
               <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", color: "var(--text)", marginBottom: "8px" }}>Payload URL</label>
-              <input placeholder="https://api.yourdomain.com/hooks/nexus" value={url} onChange={e => setUrl(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)", outline: "none", fontSize: "0.9rem" }} />
+              <input placeholder="https://api.yourdomain.com/hooks/authcore" value={url} onChange={e => setUrl(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)", outline: "none", fontSize: "0.9rem" }} />
             </div>
             <Button variant="primary" onClick={handleCreate} disabled={!selectedAppId || !url.trim()} style={{ height: "43px" }}>Add Webhook</Button>
           </div>

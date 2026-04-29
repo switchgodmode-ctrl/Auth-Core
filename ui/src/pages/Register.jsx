@@ -98,7 +98,7 @@ export default function Register() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <Card 
             title="Create an Account" 
-            subtitle="Join developers who trust NexusPlatform to protect their software."
+            subtitle="Join developers who trust AuthCore to protect their software."
             glowing={true}
           >
             {error ? <div className="auth-error-msg">{error}</div> : null}

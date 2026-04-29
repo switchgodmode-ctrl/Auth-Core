@@ -64,7 +64,7 @@ export default function Payments() {
       key: r.keyId,
       amount: r.order.amount,
       currency: r.order.currency,
-      name: "NexusPlatform",
+      name: "AuthCore",
       description: "Upgrade to Premium",
       order_id: r.order.id,
       handler: async function (response) {

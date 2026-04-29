@@ -70,7 +70,7 @@ export default function Support() {
             <p style={{ color: "var(--muted)", fontSize: "0.9rem", lineHeight: "1.6" }}>
               Looking for a custom plan, volume discount, or enterprise SLA? Our sales engineers are ready to assist.
             </p>
-            <div style={{ marginTop: "16px", fontWeight: "600", color: "var(--accent)" }}>sales@nexus.cloud</div>
+            <div style={{ marginTop: "16px", fontWeight: "600", color: "var(--accent)" }}>sales@authcore.io</div>
           </div>
 
           <div style={{ padding: "24px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px" }}>
@@ -80,7 +80,7 @@ export default function Support() {
             <p style={{ color: "var(--muted)", fontSize: "0.9rem", lineHeight: "1.6" }}>
               Need help integrating the API or debugging an issue? Make sure to include your App ID in the email.
             </p>
-            <div style={{ marginTop: "16px", fontWeight: "600", color: "var(--accent)" }}>support@nexus.cloud</div>
+            <div style={{ marginTop: "16px", fontWeight: "600", color: "var(--accent)" }}>support@authcore.io</div>
           </div>
 
         </motion.div>

@@ -44,7 +44,7 @@ export default function Pricing() {
     
     new window.Razorpay({
       key: order.keyId, amount: order.order.amount, currency: order.order.currency,
-      name: "NexusPlatform", description: `Upgrade to ${planName}`,
+      name: "AuthCore", description: `Upgrade to ${planName}`,
       order_id: order.order.id,
       handler: async (response) => {
         const r = await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);

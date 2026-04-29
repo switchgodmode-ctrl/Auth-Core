@@ -88,7 +88,7 @@ export default function Login() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <Card 
             title="Welcome Back" 
-            subtitle="Sign in to your NexusPlatform dashboard"
+            subtitle="Sign in to your AuthCore dashboard"
             glowing={true}
           >
             {error ? <div className="auth-error-msg">{error}</div> : null}
