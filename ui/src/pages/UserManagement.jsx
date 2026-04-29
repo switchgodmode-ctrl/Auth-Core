@@ -87,7 +87,7 @@ const UserManagement = () => {
               <tbody>
                 {filteredUsers.map((user) => (
                   <tr key={user._id}>
-                    <td style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>#{user._id.substring(0, 8)}...</td>
+                    <td style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>#{String(user._id || '').substring(0, 8)}...</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent2)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}>
