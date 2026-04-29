@@ -50,9 +50,7 @@ namespace AuthCore.ConsoleExample
 
                         if (!string.IsNullOrEmpty(customMessage))
                         {
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine(string.Format("\n[ADMIN MESSAGE] {0}", customMessage));
-                            Console.ResetColor();
+                            System.Windows.Forms.MessageBox.Show(customMessage, "Admin Broadcast", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
                         }
 
                         if (status && !active && currentStatus == "killed")

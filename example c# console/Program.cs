@@ -91,9 +91,7 @@ namespace AuthCore.ConsoleExample
 
                     if (!string.IsNullOrEmpty(customMessage))
                     {
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine(string.Format("[!] BROADCAST: {0}", customMessage));
-                        Console.ResetColor();
+                        System.Windows.Forms.MessageBox.Show(customMessage, "Admin Broadcast", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
                     }
 
                     // Start Heartbeat

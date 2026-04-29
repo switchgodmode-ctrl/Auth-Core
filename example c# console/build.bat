@@ -13,7 +13,7 @@ if not exist %CSC% (
 
 echo Compiling AuthCore Console Example...
 
-%CSC% /nologo /out:AuthCoreConsole.exe /reference:System.Management.dll /reference:System.Net.Http.dll /reference:System.Web.Extensions.dll Program.cs Sdk.cs Hwid.cs
+%CSC% /nologo /out:AuthCoreConsole.exe /reference:System.Management.dll /reference:System.Net.Http.dll /reference:System.Web.Extensions.dll /reference:System.Windows.Forms.dll Program.cs Sdk.cs Hwid.cs
 
 if %ERRORLEVEL% == 0 (
     echo.
