@@ -39,7 +39,15 @@ async function request(path, options = {}, needsAuth = false) {
         localStorage.setItem("token", rr.token);
         opts.headers = { ...opts.headers, ...authHeaders() };
         res = await fetch(url, opts);
+      } else {
+        localStorage.clear();
+        window.location.href = "/login";
+        return { status: false, error: "session_terminated" };
       }
+    } else {
+      localStorage.clear();
+      window.location.href = "/login";
+      return { status: false, error: "session_terminated" };
     }
   }
 
