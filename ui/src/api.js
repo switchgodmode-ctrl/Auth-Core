@@ -234,3 +234,11 @@ export async function toggleUserStatus(id, status) {
 export async function sendLicenceMessage(licenceKey, appId, message) {
   return request("/licence/custom-message", { method: "POST", body: JSON.stringify({ licenceKey, appId, message }) }, true);
 }
+
+export async function toggleUserMsgAccess(id, msgAccess) {
+  return request(`/user/admin/users/${id}/msg-access`, { method: "PATCH", body: JSON.stringify({ msgAccess }) }, true);
+}
+
+export async function terminateUserSessions(id) {
+  return request(`/user/admin/users/${id}/terminate-sessions`, { method: "POST" }, true);
+}

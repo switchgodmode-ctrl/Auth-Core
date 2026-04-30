@@ -25,7 +25,7 @@ export default function Licences() {
       const role = (localStorage.getItem("role") || "").toLowerCase();
       if (role === "admin") return true;
       const u = JSON.parse(localStorage.getItem("user") || "{}");
-      return !!u.sdkAccess;
+      return !!u.msgAccess;
     } catch(e) {
       return false;
     }

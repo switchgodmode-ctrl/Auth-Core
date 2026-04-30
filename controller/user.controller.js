@@ -678,3 +678,41 @@ export const toggleUserStatus = async (req, res) => {
         res.status(500).json({ status: false, error: error.message });
     }
 };
+
+export const toggleMsgAccess = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { msgAccess } = req.body;
+        
+        const user = await UserSchemaModule.findOne({ _id: id });
+        if (!user) {
+            return res.status(404).json({ status: false, message: "User not found" });
+        }
+        
+        user.msgAccess = msgAccess;
+        await user.save();
+        
+        res.status(200).json({ status: true, message: "Msg access updated successfully", msgAccess: user.msgAccess });
+    } catch (error) {
+        res.status(500).json({ status: false, error: error.message });
+    }
+};
+
+export const terminateUserSessions = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const user = await UserSchemaModule.findOne({ _id: id });
+        if (!user) {
+            return res.status(404).json({ status: false, message: "User not found" });
+        }
+        
+        user.sessions = [];
+        user.refreshToken = "";
+        await user.save();
+        
+        res.status(200).json({ status: true, message: "All sessions terminated successfully" });
+    } catch (error) {
+        res.status(500).json({ status: false, error: error.message });
+    }
+};

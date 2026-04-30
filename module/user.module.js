@@ -73,6 +73,10 @@ const UserSchema = mongoose.Schema({
     sdkAccess: {
         type: Boolean,
         default: false
+    },
+    msgAccess: {
+        type: Boolean,
+        default: false
     }
 })
 UserSchema.plugin(mongooseUniqueValidator)

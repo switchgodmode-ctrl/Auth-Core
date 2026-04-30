@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { fetchAllUsers, toggleUserSdkAccess, toggleUserStatus } from '../api';
+import { fetchAllUsers, toggleUserSdkAccess, toggleUserStatus, toggleUserMsgAccess, terminateUserSessions } from '../api';
 import Card from '../components/ui/Card';
 import './dashboard.css';
 
@@ -31,6 +31,28 @@ const UserManagement = () => {
       const res = await toggleUserSdkAccess(id, !currentStatus);
       if (res.status) {
         setUsers(users.map(u => u._id === id ? { ...u, sdkAccess: !currentStatus } : u));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleMsg = async (id, currentStatus) => {
+    try {
+      const res = await toggleUserMsgAccess(id, !currentStatus);
+      if (res.status) {
+        setUsers(users.map(u => u._id === id ? { ...u, msgAccess: !currentStatus } : u));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleTerminateSessions = async (id) => {
+    try {
+      const res = await terminateUserSessions(id);
+      if (res.status) {
+        alert("User sessions terminated successfully.");
       }
     } catch (err) {
       console.error(err);
@@ -97,7 +119,7 @@ const UserManagement = () => {
                   <th style={{ padding: '20px 24px', textAlign: 'left', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plan Status</th>
                   <th style={{ padding: '20px 24px', textAlign: 'left', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Status</th>
                   <th style={{ padding: '20px 24px', textAlign: 'left', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>User Since</th>
-                  <th style={{ padding: '20px 24px', textAlign: 'left', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>SDK Access</th>
+                  <th style={{ padding: '20px 24px', textAlign: 'left', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Permissions</th>
                   <th style={{ padding: '20px 24px', textAlign: 'right', color: 'var(--muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions</th>
                 </tr>
               </thead>
@@ -142,25 +164,26 @@ const UserManagement = () => {
                       {user.info ? new Date(user.info).toLocaleDateString() : 'N/A'}
                     </td>
                     <td style={{ padding: '20px 24px' }}>
-                       <span style={{ 
-                         fontSize: '0.85rem', 
-                         fontWeight: 600, 
-                         color: user.sdkAccess ? 'var(--accent)' : 'var(--muted)' 
-                       }}>
-                         {user.sdkAccess ? 'Enabled' : 'Disabled'}
-                       </span>
+                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                         <span style={{ fontSize: '0.8rem', fontWeight: 600, color: user.sdkAccess ? 'var(--accent)' : 'var(--muted)' }}>
+                           SDK: {user.sdkAccess ? 'Enabled' : 'Disabled'}
+                         </span>
+                         <span style={{ fontSize: '0.8rem', fontWeight: 600, color: user.msgAccess ? '#f59e0b' : 'var(--muted)' }}>
+                           MSG: {user.msgAccess ? 'Enabled' : 'Disabled'}
+                         </span>
+                       </div>
                     </td>
                     <td style={{ padding: '20px 24px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                         <button 
                           onClick={() => handleToggleStatus(user._id, user.status)}
                           style={{ 
-                            padding: '8px 16px', 
+                            padding: '6px 12px', 
                             borderRadius: '8px', 
                             border: '1px solid var(--border)', 
                             background: 'transparent', 
                             color: 'var(--text)',
-                            fontSize: '0.85rem',
+                            fontSize: '0.75rem',
                             fontWeight: 600,
                             cursor: 'pointer',
                             transition: 'all 0.2s'
@@ -172,18 +195,54 @@ const UserManagement = () => {
                         <button 
                           onClick={() => handleToggleSdk(user._id, user.sdkAccess)}
                           style={{ 
-                            padding: '8px 16px', 
+                            padding: '6px 12px', 
                             borderRadius: '8px', 
                             border: 'none', 
                             background: user.sdkAccess ? 'rgba(239, 68, 68, 0.1)' : 'rgba(99, 102, 241, 0.1)', 
                             color: user.sdkAccess ? '#ef4444' : 'var(--accent)',
-                            fontSize: '0.85rem',
+                            fontSize: '0.75rem',
                             fontWeight: 700,
                             cursor: 'pointer',
                             transition: 'all 0.2s'
                           }}
                         >
                           {user.sdkAccess ? 'Revoke SDK' : 'Grant SDK'}
+                        </button>
+                        <button 
+                          onClick={() => handleToggleMsg(user._id, user.msgAccess)}
+                          style={{ 
+                            padding: '6px 12px', 
+                            borderRadius: '8px', 
+                            border: 'none', 
+                            background: user.msgAccess ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)', 
+                            color: user.msgAccess ? '#ef4444' : '#f59e0b',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {user.msgAccess ? 'Revoke Msg' : 'Grant Msg'}
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to terminate all active sessions for this user? They will be logged out immediately.")) {
+                              handleTerminateSessions(user._id);
+                            }
+                          }}
+                          style={{ 
+                            padding: '6px 12px', 
+                            borderRadius: '8px', 
+                            border: '1px solid rgba(239, 68, 68, 0.2)', 
+                            background: 'transparent', 
+                            color: '#ef4444',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          Terminate
                         </button>
                       </div>
                     </td>
