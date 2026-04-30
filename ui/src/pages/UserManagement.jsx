@@ -1,13 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { fetchAllUsers, toggleUserSdkAccess, toggleUserStatus, toggleUserMsgAccess, terminateUserSessions } from '../api';
 import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
 import './dashboard.css';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [status, setStatus] = useState({ msg: "", type: "" });
+  const [confirmDialog, setConfirmDialog] = useState(null);
+
+  const showStatus = (msg, type = "info") => {
+    setStatus({ msg, type });
+    setTimeout(() => setStatus({ msg: "", type: "" }), 4000);
+  };
 
   useEffect(() => {
     loadUsers();
@@ -52,10 +60,13 @@ const UserManagement = () => {
     try {
       const res = await terminateUserSessions(id);
       if (res.status) {
-        alert("User sessions terminated successfully.");
+        showStatus("User sessions terminated successfully.", "success");
+      } else {
+        showStatus("Failed to terminate sessions.", "error");
       }
     } catch (err) {
       console.error(err);
+      showStatus("An error occurred.", "error");
     }
   };
 
@@ -78,6 +89,43 @@ const UserManagement = () => {
 
   return (
     <div className="db-content animate-fade-in" style={{ padding: '0', maxWidth: '100%' }}>
+      
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {status.msg && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20, x: "-50%" }} 
+            animate={{ opacity: 1, y: 0, x: "-50%" }} 
+            exit={{ opacity: 0, y: -20, x: "-50%" }}
+            style={{
+              position: "fixed", top: "24px", left: "50%", zIndex: 1000,
+              padding: "12px 24px", borderRadius: "100px", fontWeight: "600", fontSize: "0.85rem",
+              background: status.type === "error" ? "var(--error, #ef4444)" : status.type === "success" ? "var(--success, #10b981)" : "var(--accent)",
+              color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,0.3)"
+            }}
+          >
+            {status.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {confirmDialog && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} onClick={() => setConfirmDialog(null)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} style={{ position: "relative", width: "100%", maxWidth: "420px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "16px", padding: "24px", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
+              <h3 style={{ marginTop: 0, fontSize: "1.2rem", fontWeight: "700", color: "var(--text)" }}>{confirmDialog.title}</h3>
+              <p style={{ color: "var(--muted)", fontSize: "0.9rem", lineHeight: 1.5, marginBottom: "24px" }}>{confirmDialog.message}</p>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+                <Button variant="ghost" onClick={() => setConfirmDialog(null)}>Cancel</Button>
+                <Button variant="danger" onClick={confirmDialog.onConfirm}>{confirmDialog.confirmText || "Confirm"}</Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <header className="db-header-main" style={{ marginBottom: '32px' }}>
         <div>
           <h1 className="db-title" style={{ fontSize: '2.5rem', fontWeight: 800 }}>User Management</h1>
@@ -225,11 +273,15 @@ const UserManagement = () => {
                           {user.msgAccess ? 'Revoke Msg' : 'Grant Msg'}
                         </button>
                         <button 
-                          onClick={() => {
-                            if (window.confirm("Are you sure you want to terminate all active sessions for this user? They will be logged out immediately.")) {
+                          onClick={() => setConfirmDialog({
+                            title: "Terminate User Sessions",
+                            message: "Are you sure you want to terminate all active sessions for this user? They will be logged out immediately.",
+                            confirmText: "Terminate Sessions",
+                            onConfirm: () => {
+                              setConfirmDialog(null);
                               handleTerminateSessions(user._id);
                             }
-                          }}
+                          })}
                           style={{ 
                             padding: '6px 12px', 
                             borderRadius: '8px', 
