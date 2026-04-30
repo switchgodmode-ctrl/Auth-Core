@@ -1,7 +1,7 @@
+// Minimal JWT auth middleware to protect endpoints and scope data per user.
 import jwt from "jsonwebtoken";
-import UserModule from "../module/user.module.js";
 
-export async function requireAuth(req, res, next) {
+export function requireAuth(req, res, next) {
   try {
     const header = req.headers.authorization || "";
     let token = header.startsWith("Bearer ") ? header.slice(7) : header;
@@ -14,18 +14,6 @@ export async function requireAuth(req, res, next) {
     if (!token) return res.status(401).json({ status: false, message: "Unauthorized" });
     const key = process.env.JWT_SECRET || "dev_secret";
     const payload = jwt.verify(token, key);
-    
-    // Immediate termination check: Verify user still has an active session/refresh token
-    const dbUser = await UserModule.findOne({ _id: Number(payload.id || payload._id) });
-    if (!dbUser || !dbUser.refreshToken) {
-      return res.status(401).json({ status: false, message: "Session terminated" });
-    }
-    
-    // Also enforce immediate ban if status is 0
-    if (dbUser.status === 0) {
-      return res.status(401).json({ status: false, message: "Account blocked" });
-    }
-
     req.user = { 
       id: Number(payload.id || payload._id), 
       email: payload.email, 
