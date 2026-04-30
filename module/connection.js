@@ -3,8 +3,6 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-mongoose.connect(process.env.MONGO_URI, {
-    serverSelectionTimeoutMS: 5000,
-})
+mongoose.connect(process.env.MONGO_URI)
 .then(()=> console.log("DB Connected"))
-.catch(err => console.log("DB Connection Error:", err));
+.catch(err => console.log(err));
