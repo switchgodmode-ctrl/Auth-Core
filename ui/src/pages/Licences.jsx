@@ -20,6 +20,17 @@ export default function Licences() {
   const [msgAppId, setMsgAppId] = useState(0);
   const [msgValue, setMsgValue] = useState("");
 
+  const canSeeMsg = useMemo(() => {
+    try {
+      const role = (localStorage.getItem("role") || "").toLowerCase();
+      if (role === "admin") return true;
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      return !!u.sdkAccess;
+    } catch(e) {
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     refresh();
   }, []);
@@ -171,10 +182,12 @@ export default function Licences() {
                 onMouseOver={e => e.currentTarget.style.background = "var(--surface2)"} onMouseOut={e => e.currentTarget.style.background = "transparent"}
               >Days</button>
 
-              <button 
-                onClick={() => { setMsgKey(lic.key); setMsgAppId(lic.appId); setMsgValue(lic.customMessage || ""); setMsgOpen(true); }}
-                style={{ cursor: "pointer", background: "transparent", border: "1px solid var(--border)", color: "var(--accent)", padding: "4px 10px", fontSize: "0.75rem", borderRadius: "6px", fontWeight: "500" }}
-              >Msg</button>
+              {canSeeMsg && (
+                <button 
+                  onClick={() => { setMsgKey(lic.key); setMsgAppId(lic.appId); setMsgValue(lic.customMessage || ""); setMsgOpen(true); }}
+                  style={{ cursor: "pointer", background: "transparent", border: "1px solid var(--border)", color: "var(--accent)", padding: "4px 10px", fontSize: "0.75rem", borderRadius: "6px", fontWeight: "500" }}
+                >Msg</button>
+              )}
               
               {lic.Status === "ban" ? (
                 <button onClick={() => action("Unban", banUnbanLicence, lic.key, lic.appId, "unban")} style={{ cursor: "pointer", background: "transparent", border: "1px solid var(--border)", color: "var(--success, #10b981)", padding: "4px 10px", fontSize: "0.75rem", borderRadius: "6px", fontWeight: "500" }}>Unban</button>
