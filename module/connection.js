@@ -3,9 +3,6 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Disable buffering to prevent "buffering timed out" errors in serverless
-mongoose.set('bufferCommands', false);
-
 mongoose.connect(process.env.MONGO_URI, {
     serverSelectionTimeoutMS: 5000,
 })
