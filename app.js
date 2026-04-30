@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 import fs from 'fs';
 import path from 'path';
+import './module/connection.js';
 // Environment variables are loaded via dotenv and Vercel's native env support
 import bodyParser from 'body-parser';
 import UserRouter from "./routes/user.router.js"
@@ -18,6 +19,7 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 
 const app = express();
+app.set('trust proxy', 1);
 
 // 1. MUST BE FIRST: CORS HEADERS
 app.use((req, res, next) => {
