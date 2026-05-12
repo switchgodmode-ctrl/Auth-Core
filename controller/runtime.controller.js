@@ -85,15 +85,32 @@ export const validate = async (req, res) => {
       console.log(`[AUTH] Licence ${licenceKey} bound to Fingerprint: ${hashedHwid}`);
     }
 
-    // CHECK HWID MATCH (AGAINST HASHED STORAGE)
+    // CHECK HWID MATCH (STRICT MULTI-SIGNAL VALIDATION)
+    let mismatchDetected = false;
     if (licence.hwid && licence.hwid !== hashedHwid) {
+        mismatchDetected = true;
+    }
+
+    // Deep check every individual signal if they exist in DB
+    if (licence.hwidSignals && typeof licence.hwidSignals === "object") {
+        for (const key in licence.hwidSignals) {
+            // If the signal exists in DB and doesn't match incoming hashed signal
+            if (licence.hwidSignals[key] && licence.hwidSignals[key] !== hashedSignals[key]) {
+                mismatchDetected = true;
+                console.log(`[SECURITY] Signal mismatch on ${key} for ${licenceKey}`);
+                break;
+            }
+        }
+    }
+
+    if (mismatchDetected) {
       licence.trustScore = Math.max(0, licence.trustScore - 10);
       if (licence.trustScore < 10 && licence.Status !== "ban") {
           licence.Status = "ban";
-          dispatchWebhooks(appId, "LICENCE_BANNED", { licenceKey, reason: "HWID mismatch threshold breached", hwidAttempt: hwid });
+          dispatchWebhooks(appId, "LICENCE_BANNED", { licenceKey, reason: "Strict HWID/Signal mismatch", hwidAttempt: hashedHwid });
       }
       await licence.save();
-      return res.status(403).json({ status: false, message: "HWID mismatch detected. License is locked to another system.", trustScore: licence.trustScore });
+      return res.status(403).json({ status: false, message: "HWID/Signal mismatch detected. This license is locked to another system.", trustScore: licence.trustScore });
     }
 
     if (licence.activatedAt) {
