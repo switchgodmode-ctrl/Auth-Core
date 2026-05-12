@@ -110,7 +110,11 @@ export const validate = async (req, res) => {
           dispatchWebhooks(appId, "LICENCE_BANNED", { licenceKey, reason: "Strict HWID/Signal mismatch", hwidAttempt: hashedHwid });
       }
       await licence.save();
-      return res.status(403).json({ status: false, message: "HWID/Signal mismatch detected. This license is locked to another system.", trustScore: licence.trustScore });
+      return res.status(403).json({ 
+          status: false, 
+          message: "Authorization Error: This license key is already registered to a different hardware profile. For security reasons, multi-system access is restricted. Please contact support if you believe this is an error.", 
+          trustScore: licence.trustScore 
+      });
     }
 
     if (licence.activatedAt) {
