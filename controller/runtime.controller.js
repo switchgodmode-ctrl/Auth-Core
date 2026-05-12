@@ -195,8 +195,6 @@ export const validate = async (req, res) => {
       }
     }
 
-    const ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress || "";
-
     const prevSession = await RuntimeSessionModule.findOne({ licenceId: licence._id }).sort({ lastSeen: -1 });
     if (prevSession && prevSession.integrityHash && prevSession.integrityHash !== integrityHash) {
       licence.trustScore = Math.max(0, licence.trustScore - 5);
