@@ -1,52 +1,35 @@
-import { execSync } from "child_process";
-import crypto from "crypto";
+const { execSync } = require('child_process');
+const crypto = require('crypto');
 
-function run(cmd) {
-  try { return execSync(cmd, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim(); } catch { return ""; }
-}
-
-function getSignals() {
-  const sys = run(`powershell -NoProfile -Command "(Get-CimInstance Win32_ComputerSystemProduct).UUID"`);
-  const mb = run(`powershell -NoProfile -Command "(Get-CimInstance Win32_BaseBoard).SerialNumber"`);
-  const disk = run(`powershell -NoProfile -Command "(Get-PhysicalDisk | Select-Object -First 1).SerialNumber"`);
-  return {
-    system_uuid: sys,
-    motherboard_id: mb,
-    disk_serial: disk
-  };
+function getWmiProperty(command) {
+    try {
+        const output = execSync(command).toString().trim();
+        const lines = output.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length > 1) {
+            return lines[1];
+        }
+        return "unknown";
+    } catch (e) {
+        return "unknown";
+    }
 }
 
-function composite(signals) {
-  const base = `${signals.system_uuid || ""}|${signals.motherboard_id || ""}`;
-  return crypto.createHash("sha256").update(base).digest("hex");
+function getHardwareSignals() {
+    if (process.platform !== 'win32') {
+        return { platform: process.platform, arch: process.arch };
+    }
+    return {
+        cpuId: getWmiProperty('wmic cpu get processorid'),
+        motherboard: getWmiProperty('wmic baseboard get serialnumber'),
+        uuid: getWmiProperty('wmic csproduct get uuid'),
+        disk: getWmiProperty('wmic diskdrive get serialnumber')
+    };
 }
 
-export function getHwid() {
-  const signals = getSignals();
-  const hwid = composite(signals);
-  return { hwid, signals };
+function getHwid() {
+    const signals = getHardwareSignals();
+    const baseStr = `${signals.uuid}|${signals.motherboard}|${signals.cpuId}`;
+    return crypto.createHash('sha256').update(baseStr).digest('hex');
 }
-export function buildVerifyPayload(appName, appSecret, licenceKey) {
-  const { hwid, signals } = getHwid();
-  return {
-    appName,
-    appSecret,
-    licenceKey,
-    hwid,
-    system_uuid: signals.system_uuid,
-    motherboard_id: signals.motherboard_id
-  };
-}
-export function buildRuntimePayload(appId, appSecret, licenceKey, appVersion, integrityHash) {
-  const { hwid, signals } = getHwid();
-  return {
-    appId,
-    appSecret,
-    licenceKey,
-    hwid,
-    appVersion,
-    integrityHash,
-    system_uuid: signals.system_uuid,
-    motherboard_id: signals.motherboard_id
-  };
-}
+
+module.exports = { getHwid, getHardwareSignals };

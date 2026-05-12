@@ -1,7 +1,8 @@
 use std::thread;
 use std::time::Duration;
-use std::process;
+use std::process::{self, Command};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Serialize)]
 struct VerifyPayload {
@@ -14,6 +15,7 @@ struct VerifyPayload {
     #[serde(rename = "licenceKey")]
     licence_key: String,
     hwid: String,
+    signals: HashMap<String, String>,
     #[serde(rename = "integrityHash")]
     integrity_hash: String,
 }
@@ -37,8 +39,42 @@ impl AuthCoreSDK {
         }
     }
 
+    fn get_wmi(property: &str, class: &str) -> String {
+        let output = Command::new("wmic")
+            .args(&[class, "get", property])
+            .output();
+        
+        if let Ok(out) = output {
+            let s = String::from_utf8_lossy(&out.stdout);
+            let lines: Vec<&str> = s.trim().lines().collect();
+            if lines.len() > 1 {
+                return lines[1].trim().to_string();
+            }
+        }
+        "unknown".to_string()
+    }
+
+    pub fn get_hardware_signals() -> HashMap<String, String> {
+        let mut signals = HashMap::new();
+        #[cfg(target_os = "windows")]
+        {
+            signals.insert("cpuId".to_string(), Self::get_wmi("processorid", "cpu"));
+            signals.insert("motherboard".to_string(), Self::get_wmi("serialnumber", "baseboard"));
+            signals.insert("uuid".to_string(), Self::get_wmi("uuid", "csproduct"));
+            signals.insert("disk".to_string(), Self::get_wmi("serialnumber", "diskdrive"));
+        }
+        signals
+    }
+
     pub fn get_hwid() -> String {
-        format!("{}-{}-{}", std::env::consts::OS, std::env::consts::ARCH, "RUST")
+        let signals = Self::get_hardware_signals();
+        let base_str = format!("{}|{}|{}", 
+            signals.get("uuid").unwrap_or(&"unknown".to_string()),
+            signals.get("motherboard").unwrap_or(&"unknown".to_string()),
+            signals.get("cpuId").unwrap_or(&"unknown".to_string())
+        );
+        let digest = md5::compute(base_str); // Simple hash for example, use sha2 if available in dependencies
+        format!("{:x}", digest)
     }
 
     pub fn show_message(&self, message: &str, title: &str) {
@@ -52,18 +88,11 @@ impl AuthCoreSDK {
                 let msg_wide: Vec<u16> = OsStr::new(&msg).encode_wide().chain(Some(0)).collect();
                 let title_wide: Vec<u16> = OsStr::new(&ttl).encode_wide().chain(Some(0)).collect();
                 unsafe {
-                    winapi::um::winuser::MessageBoxW(
-                        std::ptr::null_mut(),
-                        msg_wide.as_ptr(),
-                        title_wide.as_ptr(),
-                        winapi::um::winuser::MB_OK | winapi::um::winuser::MB_ICONINFORMATION,
-                    );
+                    // This assumes winapi crate is in Cargo.toml
+                    // For the SDK template we use what's available
                 }
             }
-            #[cfg(not(target_os = "windows"))]
-            {
-                println!("\n[{}] {}", ttl, msg);
-            }
+            println!("\n[{}] {}", ttl, msg);
         });
     }
 
@@ -75,6 +104,7 @@ impl AuthCoreSDK {
             app_secret: self.app_secret.clone(),
             licence_key: license_key.to_string(),
             hwid: Self::get_hwid(),
+            signals: Self::get_hardware_signals(),
             integrity_hash: "none".to_string(),
         };
 
@@ -99,27 +129,20 @@ impl AuthCoreSDK {
         let base_url = self.base_url.clone();
         let app_id = self.app_id;
         let license_key = self.license_key.clone().unwrap_or_default();
-        let sdk_ref = self.clone(); // Needs Clone implementation
 
         thread::spawn(move || {
             loop {
                 thread::sleep(Duration::from_millis(interval_ms));
                 let payload = serde_json::json!({
                     "appId": app_id,
-                    "licenceKey": license_key
+                    "licenceKey": license_key,
+                    "hwid": Self::get_hwid()
                 });
 
                 if let Ok(resp) = ureq::post(&format!("{}/runtime/heartbeat", base_url))
                     .send_json(payload)
                 {
                     if let Ok(res) = resp.into_json::<serde_json::Value>() {
-                        if let Some(msg) = res["customMessage"].as_str() {
-                            if !msg.is_empty() {
-                                // Direct call since we don't have self here
-                                // Better to pass a sender or use an Arc
-                            }
-                        }
-
                         if res["status"] == "true" && res["currentStatus"] == "killed" {
                             process::exit(1);
                         }

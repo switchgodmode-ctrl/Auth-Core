@@ -1,49 +1,27 @@
 import subprocess
 import hashlib
+import platform
 
-def run(cmd):
+def get_wmi_property(cmd):
     try:
-        return subprocess.check_output(cmd, shell=True).decode().strip()
+        output = subprocess.check_output(cmd, shell=True).decode().strip()
+        # Clean up output (wmic often adds headers and extra lines)
+        lines = [line.strip() for line in output.split('\n') if line.strip()]
+        if len(lines) > 1:
+            return lines[1]
+        return "unknown"
     except:
-        return ""
+        return "unknown"
 
-def get_signals():
-    sys = run('powershell -NoProfile -Command "(Get-CimInstance Win32_ComputerSystemProduct).UUID"')
-    mb = run('powershell -NoProfile -Command "(Get-CimInstance Win32_BaseBoard).SerialNumber"')
-    disk = run('powershell -NoProfile -Command "(Get-PhysicalDisk | Select-Object -First 1).SerialNumber"')
+def get_hardware_signals():
     return {
-        "system_uuid": sys,
-        "motherboard_id": mb,
-        "disk_serial": disk
+        "cpuId": get_wmi_property("wmic cpu get processorid"),
+        "motherboard": get_wmi_property("wmic baseboard get serialnumber"),
+        "uuid": get_wmi_property("wmic csproduct get uuid"),
+        "disk": get_wmi_property("wmic diskdrive get serialnumber")
     }
-
-def composite(signals):
-    base = f"{signals.get('system_uuid','')}|{signals.get('motherboard_id','')}"
-    return hashlib.sha256(base.encode()).hexdigest()
 
 def get_hwid():
-    signals = get_signals()
-    hwid = composite(signals)
-    return hwid, signals
-def build_verify_payload(app_name, app_secret, licence_key):
-    hwid, signals = get_hwid()
-    return {
-        "appName": app_name,
-        "appSecret": app_secret,
-        "licenceKey": licence_key,
-        "hwid": hwid,
-        "system_uuid": signals.get("system_uuid"),
-        "motherboard_id": signals.get("motherboard_id")
-    }
-def build_runtime_payload(app_id, app_secret, licence_key, app_version, integrity_hash):
-    hwid, signals = get_hwid()
-    return {
-        "appId": app_id,
-        "appSecret": app_secret,
-        "licenceKey": licence_key,
-        "hwid": hwid,
-        "appVersion": app_version,
-        "integrityHash": integrity_hash,
-        "system_uuid": signals.get("system_uuid"),
-        "motherboard_id": signals.get("motherboard_id")
-    }
+    signals = get_hardware_signals()
+    base_str = f"{signals['uuid']}|{signals['motherboard']}|{signals['cpuId']}"
+    return hashlib.sha256(base_str.encode()).hexdigest()

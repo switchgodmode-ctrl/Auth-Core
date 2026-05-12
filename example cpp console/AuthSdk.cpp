@@ -5,9 +5,13 @@
 #include <chrono>
 #include <iostream>
 #include <sstream>
+#include <vector>
+#include <intrin.h>
+#include <iphlpapi.h>
 
 #pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "user32.lib")
+#pragma comment(lib, "iphlpapi.lib")
 
 namespace AuthCore {
 
@@ -17,14 +21,6 @@ namespace AuthCore {
         std::wstring w(n, 0);
         MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), &w[0], n);
         return w;
-    }
-
-    static std::string from_w(const std::wstring& w) {
-        if (w.empty()) return "";
-        int n = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int)w.size(), NULL, 0, NULL, NULL);
-        std::string s(n, 0);
-        WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int)w.size(), &s[0], n, NULL, NULL);
-        return s;
     }
 
     static std::string extract_json_value(const std::string& json, const std::string& key) {
@@ -52,7 +48,7 @@ namespace AuthCore {
         uc.dwHostNameLength = (DWORD)-1; uc.dwUrlPathLength = (DWORD)-1; uc.dwExtraInfoLength = (DWORD)-1;
         if (!WinHttpCrackUrl(wurl.c_str(), 0, 0, &uc)) return false;
 
-        HINTERNET ses = WinHttpOpen(L"AuthCore/1.1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, NULL, NULL, 0);
+        HINTERNET ses = WinHttpOpen(L"AuthCore/1.2", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, NULL, NULL, 0);
         if (!ses) return false;
 
         std::wstring host(uc.lpszHostName, uc.dwHostNameLength);
@@ -71,30 +67,75 @@ namespace AuthCore {
 
         DWORD avail = 0; resp = "";
         while (WinHttpQueryDataAvailable(req, &avail) && avail > 0) {
-            std::string buffer(avail, 0);
+            std::vector<char> buffer(avail);
             DWORD read = 0;
             WinHttpReadData(req, &buffer[0], avail, &read);
-            resp += buffer;
+            resp.append(buffer.data(), read);
         }
 
         WinHttpCloseHandle(req); WinHttpCloseHandle(con); WinHttpCloseHandle(ses);
         return !resp.empty();
     }
 
-    std::string Sdk::GetHwid() {
-        char comp[MAX_COMPUTERNAME_LENGTH + 1]; DWORD sz = sizeof(comp);
+    std::map<std::string, std::string> Sdk::GetHardwareSignals() {
+        std::map<std::string, std::string> signals;
+
+        // 1. CPU ID
+        int cpuinfo[4];
+        __cpuid(cpuinfo, 1);
+        char cpuBuf[64];
+        sprintf(cpuBuf, "%08X%08X", cpuinfo[3], cpuinfo[0]);
+        signals["cpuId"] = cpuBuf;
+
+        // 2. Volume Serial
+        DWORD sn = 0;
+        GetVolumeInformationA("C:\\", NULL, 0, &sn, NULL, NULL, NULL, 0);
+        char snBuf[64];
+        sprintf(snBuf, "%08X", sn);
+        signals["disk"] = snBuf;
+
+        // 3. Computer Name
+        char comp[MAX_COMPUTERNAME_LENGTH + 1];
+        DWORD sz = sizeof(comp);
         GetComputerNameA(comp, &sz);
-        DWORD sn = 0; GetVolumeInformationA("C:\\", NULL, 0, &sn, NULL, NULL, NULL, 0);
-        char buf[64]; sprintf(buf, "%08X", sn);
-        return std::string(comp) + "-" + buf;
+        signals["pcName"] = comp;
+
+        // 4. MAC Address
+        IP_ADAPTER_INFO adapterInfo[16];
+        DWORD dwBufLen = sizeof(adapterInfo);
+        if (GetAdaptersInfo(adapterInfo, &dwBufLen) == ERROR_SUCCESS) {
+            char macBuf[32];
+            sprintf(macBuf, "%02X-%02X-%02X-%02X-%02X-%02X",
+                adapterInfo[0].Address[0], adapterInfo[0].Address[1],
+                adapterInfo[0].Address[2], adapterInfo[0].Address[3],
+                adapterInfo[0].Address[4], adapterInfo[0].Address[5]);
+            signals["mac"] = macBuf;
+        }
+
+        return signals;
+    }
+
+    std::string Sdk::GetHwid() {
+        auto signals = GetHardwareSignals();
+        // Create a unique fingerprint by combining signals
+        return signals["pcName"] + "-" + signals["disk"] + "-" + signals["cpuId"];
     }
 
     AuthResponse Sdk::Verify(const std::string& baseUrl, int appId, const std::string& appSecret, const std::string& licenceKey, const std::string& appVersion) {
+        auto signals = GetHardwareSignals();
+        std::string signalsJson = "{";
+        for (auto const& [key, val] : signals) {
+            signalsJson += "\"" + key + "\":\"" + val + "\",";
+        }
+        if (signalsJson.length() > 1) signalsJson.pop_back();
+        signalsJson += "}";
+
         std::string payload = "{\"appId\":" + std::to_string(appId) + 
                              ",\"appSecret\":\"" + appSecret + 
                              "\",\"licenceKey\":\"" + licenceKey + 
                              "\",\"hwid\":\"" + GetHwid() + 
-                             "\",\"appVersion\":\"" + appVersion + 
+                             "\",\"signals\":" + signalsJson +
+                             ",\"appVersion\":\"" + appVersion + 
                              "\",\"integrityHash\":\"none\"}";
 
         std::string resp;
@@ -116,17 +157,13 @@ namespace AuthCore {
         std::thread([=]() {
             while (true) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
-                std::string payload = "{\"appId\":" + std::to_string(appId) + ",\"licenceKey\":\"" + licenceKey + "\"}";
+                std::string payload = "{\"appId\":" + std::to_string(appId) + 
+                                     ",\"licenceKey\":\"" + licenceKey + 
+                                     "\",\"hwid\":\"" + GetHwid() + "\"}";
                 std::string resp;
                 if (http_post(baseUrl + "/runtime/heartbeat", payload, resp)) {
                     std::string status = extract_json_value(resp, "status");
                     std::string currentStatus = extract_json_value(resp, "currentStatus");
-                    std::string customMessage = extract_json_value(resp, "customMessage");
-
-                    if (!customMessage.empty()) {
-                        MessageBoxA(NULL, customMessage.c_str(), "Admin Broadcast", MB_OK | MB_ICONINFORMATION);
-                    }
-
                     if (status == "true" && currentStatus == "killed") {
                         MessageBoxA(NULL, "Session terminated by administrator.", "Security Alert", MB_OK | MB_ICONSTOP);
                         std::exit(0);

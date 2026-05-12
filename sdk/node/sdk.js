@@ -1,6 +1,5 @@
-const https = require('https');
-const os = require('os');
-const { exec } = require('child_process');
+const axios = require('axios');
+const { getHwid, getHardwareSignals } = require('./hwid');
 
 class AuthCoreSDK {
     constructor(baseUrl, appId, appSecret, appVersion) {
@@ -11,55 +10,6 @@ class AuthCoreSDK {
         this.licenseKey = null;
     }
 
-    getHwid() {
-        // Basic HWID for Node
-        return `${os.hostname()}-${os.platform()}-${os.arch()}`;
-    }
-
-    showMessage(message, title = "Admin Broadcast") {
-        if (process.platform === 'win32') {
-            const escaped = message.replace(/'/g, "''");
-            const cmd = `powershell -Command "[Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('${escaped}', '${title}')"`;
-            exec(cmd);
-        } else {
-            console.log(`\n[${title}] ${message}`);
-        }
-    }
-
-    async post(endpoint, data) {
-        return new Promise((resolve, reject) => {
-            const payload = JSON.stringify(data);
-            const url = new URL(this.baseUrl + endpoint);
-            
-            const options = {
-                hostname: url.hostname,
-                path: url.pathname + url.search,
-                port: url.port || 443,
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Content-Length': Buffer.byteLength(payload)
-                }
-            };
-
-            const req = https.request(options, (res) => {
-                let body = '';
-                res.on('data', (chunk) => body += chunk);
-                res.on('end', () => {
-                    try {
-                        resolve(JSON.parse(body));
-                    } catch (e) {
-                        reject(new Error('Invalid JSON response'));
-                    }
-                });
-            });
-
-            req.on('error', (e) => reject(e));
-            req.write(payload);
-            req.end();
-        });
-    }
-
     async verify(licenseKey) {
         this.licenseKey = licenseKey;
         const payload = {
@@ -67,48 +17,48 @@ class AuthCoreSDK {
             appVersion: this.appVersion,
             appSecret: this.appSecret,
             licenceKey: licenseKey,
-            hwid: this.getHwid(),
-            integrityHash: "none"
+            hwid: getHwid(),
+            signals: getHardwareSignals(),
+            integrityHash: 'none'
         };
 
         try {
-            const res = await this.post('/runtime/validate', payload);
-            const success = res.status === "true" || res.allowed === true;
-            
-            if (success && res.customMessage) {
-                this.showMessage(res.customMessage);
-            }
+            const response = await axios.post(`${this.baseUrl}/runtime/validate`, payload);
+            const res = response.data;
+            const success = res.status === 'true' || res.allowed === true;
 
             return {
                 success,
-                message: res.message || "Unknown Error",
+                message: res.message || 'Unknown Error',
                 data: res
             };
-        } catch (e) {
-            return { success: false, message: `Network Error: ${e.message}` };
+        } catch (error) {
+            return {
+                success: false,
+                message: error.response ? error.response.data.message : error.message
+            };
         }
     }
 
     startHeartbeat(intervalMs = 15000) {
-        if (!this.licenseKey) return;
-
+        if (!this.license_key && !this.licenseKey) return;
+        
         setInterval(async () => {
             try {
-                const res = await this.post('/runtime/heartbeat', {
+                const payload = {
                     appId: this.appId,
-                    licenceKey: this.licenseKey
-                });
+                    licenceKey: this.licenseKey,
+                    hwid: getHwid()
+                };
+                const response = await axios.post(`${this.baseUrl}/runtime/heartbeat`, payload);
+                const data = response.data;
 
-                if (res.customMessage) {
-                    this.showMessage(res.customMessage);
+                if (data.status === 'true' && data.currentStatus === 'killed') {
+                    console.error('[SECURITY] Session terminated by administrator.');
+                    process.exit(1);
                 }
-
-                if (res.status === "true" && res.currentStatus === "killed") {
-                    this.showMessage("Session terminated by administrator.", "Security Alert");
-                    setTimeout(() => process.exit(1), 1000);
-                }
-            } catch (e) {
-                // Network error, ignore and retry next interval
+            } catch (error) {
+                // Ignore network errors
             }
         }, intervalMs);
     }

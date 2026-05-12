@@ -3,6 +3,8 @@ Imports System.Net.Http
 Imports System.Text
 Imports System.Threading
 Imports System.Runtime.InteropServices
+Imports System.Management
+Imports System.Collections.Generic
 
 Public Class AuthCoreSDK
 
@@ -23,14 +25,38 @@ Public Class AuthCoreSDK
         Me.AppVersion = appVersion
     End Sub
 
+    Private Function GetWmiProperty(query As String, prop As String) As String
+        Try
+            Using searcher As New ManagementObjectSearcher(query)
+                For Each obj As ManagementObject In searcher.Get()
+                    Dim val = obj(prop)
+                    Return If(val Is Nothing, "unknown", val.ToString().Trim())
+                Next
+            End Using
+        Catch
+        End Try
+        Return "unknown"
+    End Function
+
+    Public Function GetHardwareSignals() As Dictionary(Of String, String)
+        Dim signals As New Dictionary(Of String, String)()
+        signals.Add("cpuId", GetWmiProperty("SELECT ProcessorId FROM Win32_Processor", "ProcessorId"))
+        signals.Add("motherboard", GetWmiProperty("SELECT SerialNumber FROM Win32_BaseBoard", "SerialNumber"))
+        signals.Add("uuid", GetWmiProperty("SELECT UUID FROM Win32_ComputerSystemProduct", "UUID"))
+        signals.Add("disk", GetWmiProperty("SELECT SerialNumber FROM Win32_PhysicalMedia", "SerialNumber"))
+        Return signals
+    End Function
+
     Public Function GetHwid() As String
-        Dim hostname As String = Environment.MachineName
-        Dim user As String = Environment.UserName
-        Return $"{hostname}-{user}-VBNET"
+        Dim signals = GetHardwareSignals()
+        Dim baseStr = $"{signals("uuid")}|{signals("motherboard")}|{signals("cpuId")}"
+        Using md5 As System.Security.Cryptography.MD5 = System.Security.Cryptography.MD5.Create()
+            Dim hash = md5.ComputeHash(Encoding.UTF8.GetBytes(baseStr))
+            Return BitConverter.ToString(hash).Replace("-", "").ToLower()
+        End Using
     End Function
 
     Public Sub ShowMessage(message As String, Optional title As String = "Admin Broadcast")
-        Thread.CurrentThread.IsBackground = True
         Dim t As New Thread(Sub()
             MessageBox(IntPtr.Zero, message, title, &H40)
         End Sub)
@@ -71,7 +97,15 @@ Public Class AuthCoreSDK
 
     Public Function Verify(licenseKey As String) As AuthResponse
         Me.LicenseKey = licenseKey
-        Dim payload As String = $"{{""appId"":{AppId},""appVersion"":""{AppVersion}"",""appSecret"":""{AppSecret}"",""licenceKey"":""{licenseKey}"",""hwid"":""{GetHwid()}"",""integrityHash"":""none""}}"
+        Dim signals = GetHardwareSignals()
+        Dim signalsJson As New StringBuilder("{")
+        For Each kvp In signals
+            signalsJson.Append($"""{kvp.Key}"":""{kvp.Value}"",")
+        Next
+        If signalsJson.Length > 1 Then signalsJson.Length -= 1 ' Remove last comma
+        signalsJson.Append("}")
+
+        Dim payload As String = $"{{""appId"":{AppId},""appVersion"":""{AppVersion}"",""appSecret"":""{AppSecret}"",""licenceKey"":""{licenseKey}"",""hwid"":""{GetHwid()}"",""signals"":{signalsJson.ToString()},""integrityHash"":""none""}}"
 
         Try
             Dim responseJson As String = Post("/runtime/validate", payload)
@@ -94,7 +128,7 @@ Public Class AuthCoreSDK
             While True
                 Thread.Sleep(intervalMs)
                 Try
-                    Dim payload As String = $"{{""appId"":{AppId},""licenceKey"":""{LicenseKey}""}}"
+                    Dim payload As String = $"{{""appId"":{AppId},""licenceKey"":""{LicenseKey}"",""hwid"":""{GetHwid()}""}}"
                     Dim responseJson As String = Post("/runtime/heartbeat", payload)
                     Dim customMsg As String = ExtractJson(responseJson, "customMessage")
                     Dim status As String = ExtractJson(responseJson, "status")

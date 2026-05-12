@@ -4,11 +4,20 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace AuthSdk {
   public static class Sdk {
-    public static object BuildVerifyPayload(int appId, string appVersion, string appSecret, string licenceKey, string hwid, string integrityHash = "none") {
-      return new { appId = appId, appVersion = appVersion, appSecret = appSecret, licenceKey = licenceKey, hwid = hwid, integrityHash = integrityHash };
+    public static object BuildVerifyPayload(int appId, string appVersion, string appSecret, string licenceKey) {
+      return new { 
+        appId = appId, 
+        appVersion = appVersion, 
+        appSecret = appSecret, 
+        licenceKey = licenceKey, 
+        hwid = Hwid.GetHwid(), 
+        signals = Hwid.GetHardwareSignals(),
+        integrityHash = "none" 
+      };
     }
 
     public static async Task<string> Verify(string baseUrl, object payload) {
@@ -20,12 +29,16 @@ namespace AuthSdk {
 
     private static Timer _heartbeatTimer;
 
-    public static void StartHeartbeat(string baseUrl, int appId, string licenceKey, int intervalMs = 10000) {
+    public static void StartHeartbeat(string baseUrl, int appId, string licenceKey, int intervalMs = 15000) {
       _heartbeatTimer?.Dispose();
       _heartbeatTimer = new Timer(async _ => {
         try {
           using var c = new HttpClient();
-          var payload = new { appId = appId, licenceKey = licenceKey };
+          var payload = new { 
+            appId = appId, 
+            licenceKey = licenceKey,
+            hwid = Hwid.GetHwid() 
+          };
           var s = JsonSerializer.Serialize(payload);
           var resp = await c.PostAsync($"{baseUrl}/runtime/heartbeat", new StringContent(s, Encoding.UTF8, "application/json"));
           var respStr = await resp.Content.ReadAsStringAsync();

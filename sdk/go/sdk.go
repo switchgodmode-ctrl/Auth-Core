@@ -2,10 +2,13 @@ package authcore
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 	"syscall"
@@ -30,9 +33,39 @@ func NewAuthCoreSDK(baseUrl string, appId int, appSecret string, appVersion stri
 	}
 }
 
-func (sdk *AuthCoreSDK) GetHWID() string {
+func getWmiProperty(property string, class string) string {
+	cmd := exec.Command("wmic", class, "get", property)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return "unknown"
+	}
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) > 1 {
+		return strings.TrimSpace(lines[1])
+	}
+	return "unknown"
+}
+
+func (sdk *AuthCoreSDK) GetHardwareSignals() map[string]string {
+	if runtime.GOOS == "windows" {
+		return map[string]string{
+			"cpuId":       getWmiProperty("processorid", "cpu"),
+			"motherboard": getWmiProperty("serialnumber", "baseboard"),
+			"uuid":        getWmiProperty("uuid", "csproduct"),
+			"disk":        getWmiProperty("serialnumber", "diskdrive"),
+		}
+	}
 	hostname, _ := os.Hostname()
-	return fmt.Sprintf("%s-%s-%s", hostname, runtime.GOOS, runtime.GOARCH)
+	return map[string]string{"hostname": hostname}
+}
+
+func (sdk *AuthCoreSDK) GetHWID() string {
+	signals := sdk.GetHardwareSignals()
+	baseStr := fmt.Sprintf("%s|%s|%s", signals["uuid"], signals["motherboard"], signals["cpuId"])
+	hash := sha256.Sum256([]byte(baseStr))
+	return hex.EncodeToString(hash[:])
 }
 
 func (sdk *AuthCoreSDK) ShowMessage(message, title string) {
@@ -43,24 +76,20 @@ func (sdk *AuthCoreSDK) ShowMessage(message, title string) {
 		lpText, _ := syscall.UTF16PtrFromString(message)
 		lpCaption, _ := syscall.UTF16PtrFromString(title)
 		
-		go messageBox.Call(0, uintptr(unsafePointer(lpText)), uintptr(unsafePointer(lpCaption)), 0x40)
+		go messageBox.Call(0, uintptr(unsafe.Pointer(lpText)), uintptr(unsafe.Pointer(lpCaption)), 0x40)
 	} else {
 		fmt.Printf("\n[%s] %s\n", title, message)
 	}
 }
 
-// Internal helper for Windows API
-func unsafePointer(p *uint16) unsafe.Pointer {
-	return unsafe.Pointer(p)
-}
-
 type verifyPayload struct {
-	AppID         int    `json:"appId"`
-	AppVersion    string `json:"appVersion"`
-	AppSecret     string `json:"appSecret"`
-	LicenceKey    string `json:"licenceKey"`
-	HWID          string `json:"hwid"`
-	IntegrityHash string `json:"integrityHash"`
+	AppID         int               `json:"appId"`
+	AppVersion    string            `json:"appVersion"`
+	AppSecret     string            `json:"appSecret"`
+	LicenceKey    string            `json:"licenceKey"`
+	HWID          string            `json:"hwid"`
+	Signals       map[string]string `json:"signals"`
+	IntegrityHash string            `json:"integrityHash"`
 }
 
 type AuthResponse struct {
@@ -77,6 +106,7 @@ func (sdk *AuthCoreSDK) Verify(licenseKey string) (*AuthResponse, error) {
 		AppSecret:     sdk.AppSecret,
 		LicenceKey:    licenseKey,
 		HWID:          sdk.GetHWID(),
+		Signals:       sdk.GetHardwareSignals(),
 		IntegrityHash: "none",
 	}
 
@@ -112,6 +142,7 @@ func (sdk *AuthCoreSDK) StartHeartbeat(intervalMs int) {
 			payload := map[string]interface{}{
 				"appId":      sdk.AppID,
 				"licenceKey": sdk.LicenseKey,
+				"hwid":       sdk.GetHWID(),
 			}
 			body, _ := json.Marshal(payload)
 			resp, err := http.Post(sdk.BaseURL+"/runtime/heartbeat", "application/json", bytes.NewBuffer(body))

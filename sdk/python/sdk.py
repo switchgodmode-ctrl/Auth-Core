@@ -5,6 +5,7 @@ import time
 import sys
 import os
 import ctypes
+from hwid import get_hwid, get_hardware_signals
 
 class AuthCoreSDK:
     def __init__(self, base_url, app_id, app_secret, app_version):
@@ -13,18 +14,6 @@ class AuthCoreSDK:
         self.app_secret = app_secret
         self.app_version = app_version
         self.license_key = None
-
-    def get_hwid(self):
-        # Basic HWID: Computer Name + Volume Serial
-        import subprocess
-        try:
-            comp_name = os.environ.get('COMPUTERNAME', 'Unknown')
-            # Get volume serial of C:
-            vol_info = subprocess.check_output('vol c:', shell=True).decode()
-            serial = vol_info.split()[-1].replace('-', '')
-            return f"{comp_name}-{serial}"
-        except:
-            return "UNKNOWN-HWID"
 
     def _show_message(self, message, title="Admin Broadcast", icon=0x40):
         # 0x40 = MB_ICONINFORMATION, 0x10 = MB_ICONSTOP
@@ -40,7 +29,8 @@ class AuthCoreSDK:
             "appVersion": self.app_version,
             "appSecret": self.app_secret,
             "licenceKey": license_key,
-            "hwid": self.get_hwid(),
+            "hwid": get_hwid(),
+            "signals": get_hardware_signals(),
             "integrityHash": "none"
         }
         
@@ -69,10 +59,15 @@ class AuthCoreSDK:
             return
         
         def loop():
-            payload = json.dumps({"appId": self.app_id, "licenceKey": self.license_key}).encode("utf-8")
             while True:
                 time.sleep(interval_ms / 1000.0)
                 try:
+                    payload_data = {
+                        "appId": self.app_id, 
+                        "licenceKey": self.license_key,
+                        "hwid": get_hwid()
+                    }
+                    payload = json.dumps(payload_data).encode("utf-8")
                     req = urllib.request.Request(f"{self.base_url}/runtime/heartbeat", data=payload, headers={"Content-Type": "application/json"}, method="POST")
                     with urllib.request.urlopen(req, timeout=10) as resp:
                         data = json.loads(resp.read().decode("utf-8"))

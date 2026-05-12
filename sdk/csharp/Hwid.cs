@@ -2,14 +2,13 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 using System.Management;
-using System.Net.Http;
-using System.Threading.Tasks;
+using System.Collections.Generic;
 
-namespace RuntimeTrust.SDK
+namespace AuthSdk
 {
     public static class Hwid
     {
-        static string Get(string query, string prop)
+        private static string GetWmiProperty(string query, string prop)
         {
             try
             {
@@ -17,37 +16,36 @@ namespace RuntimeTrust.SDK
                 {
                     foreach (var obj in searcher.Get())
                     {
-                        return obj[prop]?.ToString() ?? "";
+                        var val = obj[prop];
+                        return val == null ? "" : val.ToString().Trim();
                     }
                 }
             }
             catch { }
-            return "";
+            return "unknown";
         }
 
-        public static (string hwid, string systemUuid, string motherboard) GetComposite()
+        public static Dictionary<string, string> GetHardwareSignals()
         {
-            var sys = Get("SELECT UUID FROM Win32_ComputerSystemProduct", "UUID");
-            var mb = Get("SELECT SerialNumber FROM Win32_BaseBoard", "SerialNumber");
-            var baseStr = $"{sys}|{mb}";
+            return new Dictionary<string, string>
+            {
+                { "cpuId", GetWmiProperty("SELECT ProcessorId FROM Win32_Processor", "ProcessorId") },
+                { "motherboard", GetWmiProperty("SELECT SerialNumber FROM Win32_BaseBoard", "SerialNumber") },
+                { "uuid", GetWmiProperty("SELECT UUID FROM Win32_ComputerSystemProduct", "UUID") },
+                { "disk", GetWmiProperty("SELECT SerialNumber FROM Win32_PhysicalMedia", "SerialNumber") }
+            };
+        }
+
+        public static string GetHwid()
+        {
+            var signals = GetHardwareSignals();
+            var baseStr = signals["uuid"] + "|" + signals["motherboard"] + "|" + signals["cpuId"];
+            
             using (var sha = SHA256.Create())
             {
                 var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(baseStr));
-                var hex = BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant();
-                return (hex, sys, mb);
+                return BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant();
             }
-        }
-        public static string BuildVerifyPayload(string appName, string appSecret, string licenceKey)
-        {
-            var comp = GetComposite();
-            var json = $"{{\"appName\":\"{appName}\",\"appSecret\":\"{appSecret}\",\"licenceKey\":\"{licenceKey}\",\"hwid\":\"{comp.hwid}\",\"system_uuid\":\"{comp.systemUuid}\",\"motherboard_id\":\"{comp.motherboard}\"}}";
-            return json;
-        }
-        public static string BuildRuntimePayload(int appId, string appSecret, string licenceKey, string appVersion, string integrityHash)
-        {
-            var comp = GetComposite();
-            var json = $"{{\"appId\":{appId},\"appSecret\":\"{appSecret}\",\"licenceKey\":\"{licenceKey}\",\"hwid\":\"{comp.hwid}\",\"appVersion\":\"{appVersion}\",\"integrityHash\":\"{integrityHash}\",\"system_uuid\":\"{comp.systemUuid}\",\"motherboard_id\":\"{comp.motherboard}\"}}";
-            return json;
         }
     }
 }

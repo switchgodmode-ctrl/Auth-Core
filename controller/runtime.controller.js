@@ -27,7 +27,7 @@ const dispatchWebhooks = async (appId, eventName, payload) => {
 export const validate = async (req, res) => {
   try {
 
-    const { appId, licenceKey, hwid, appVersion, integrityHash, appSecret } = req.body || {};
+    const { appId, licenceKey, hwid, signals, appVersion, integrityHash, appSecret } = req.body || {};
     
     // Loosen strict payload validation - allow missing version or hashes for generic C# tests
     if (!appId || !licenceKey || !appSecret) {
@@ -61,6 +61,17 @@ export const validate = async (req, res) => {
     }
     lastCallMap.set(licenceKey, now);
 
+    // BIND HWID ON FIRST LOGIN
+    if (!licence.hwid) {
+      licence.hwid = hwid;
+      licence.hwidSignals = signals || {};
+      licence.activatedAt = new Date();
+      licence.Status = "online";
+      await licence.save();
+      console.log(`[AUTH] Licence ${licenceKey} bound to HWID: ${hwid}`);
+    }
+
+    // CHECK HWID MATCH
     if (licence.hwid && licence.hwid !== hwid) {
       licence.trustScore = Math.max(0, licence.trustScore - 10);
       if (licence.trustScore < 10 && licence.Status !== "ban") {
@@ -68,7 +79,7 @@ export const validate = async (req, res) => {
           dispatchWebhooks(appId, "LICENCE_BANNED", { licenceKey, reason: "HWID mismatch threshold breached", hwidAttempt: hwid });
       }
       await licence.save();
-      return res.status(403).json({ status: false, message: "HWID mismatch", trustScore: licence.trustScore });
+      return res.status(403).json({ status: false, message: "HWID mismatch detected. License is locked to another system.", trustScore: licence.trustScore });
     }
 
     if (licence.activatedAt) {
