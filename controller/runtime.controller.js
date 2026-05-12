@@ -9,8 +9,8 @@ import SystemBanModule from "../module/systemBan.module.js";
 
 const lastCallMap = new Map(); 
 
-// AES-256 Configuration (Recommended: Move key to .env)
-const ENCRYPTION_KEY = crypto.scryptSync("auth-core-master-key-2026", "salt", 32);
+// AES-256 Configuration
+const ENCRYPTION_KEY = crypto.scryptSync(process.env.MASTER_ENCRYPTION_KEY || "auth-core-master-key-2026", "salt", 32);
 const IV_LENGTH = 16;
 
 const encrypt = (text) => {
