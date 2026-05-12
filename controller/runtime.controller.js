@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import "../module/connection.js";
 
 import LicenceSchemaModule from "../module/licence.module.js";
@@ -8,6 +9,11 @@ import RuntimeSessionModule from "../module/runtimeSession.module.js";
 import WebhookSchemaModule from "../module/webhook.module.js";
 
 const lastCallMap = new Map(); 
+
+const hashSignal = (signal) => {
+    if (!signal || typeof signal !== "string") return signal;
+    return crypto.createHash("sha256").update(signal).digest("hex");
+};
 
 const dispatchWebhooks = async (appId, eventName, payload) => {
     try {
@@ -61,18 +67,26 @@ export const validate = async (req, res) => {
     }
     lastCallMap.set(licenceKey, now);
 
-    // BIND HWID ON FIRST LOGIN
+    // BIND HWID ON FIRST LOGIN (WITH SHA-256 HASHING)
+    const hashedHwid = hashSignal(hwid);
+    const hashedSignals = {};
+    if (signals && typeof signals === "object") {
+        for (const key in signals) {
+            hashedSignals[key] = hashSignal(signals[key]);
+        }
+    }
+
     if (!licence.hwid) {
-      licence.hwid = hwid;
-      licence.hwidSignals = signals || {};
+      licence.hwid = hashedHwid;
+      licence.hwidSignals = hashedSignals;
       licence.activatedAt = new Date();
       licence.Status = "online";
       await licence.save();
-      console.log(`[AUTH] Licence ${licenceKey} bound to HWID: ${hwid}`);
+      console.log(`[AUTH] Licence ${licenceKey} bound to Fingerprint: ${hashedHwid}`);
     }
 
-    // CHECK HWID MATCH
-    if (licence.hwid && licence.hwid !== hwid) {
+    // CHECK HWID MATCH (AGAINST HASHED STORAGE)
+    if (licence.hwid && licence.hwid !== hashedHwid) {
       licence.trustScore = Math.max(0, licence.trustScore - 10);
       if (licence.trustScore < 10 && licence.Status !== "ban") {
           licence.Status = "ban";
@@ -115,7 +129,7 @@ export const validate = async (req, res) => {
     await RuntimeSessionModule.create({
       licenceId: licence._id,
       ip,
-      hwid,
+      hwid: hashedHwid,
       appVersion,
       integrityHash,
       lastSeen: new Date()
@@ -126,7 +140,7 @@ export const validate = async (req, res) => {
     const allowed = licence.Status === "online";
 
     if (allowed) {
-        dispatchWebhooks(appId, "SESSION_CONNECTED", { licenceKey, ip, hwid, appVersion });
+        dispatchWebhooks(appId, "SESSION_CONNECTED", { licenceKey, ip, hwid: hashedHwid, appVersion });
     }
 
     const responsePayload = {

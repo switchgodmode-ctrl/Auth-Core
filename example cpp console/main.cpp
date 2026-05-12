@@ -25,7 +25,7 @@ int main() {
 
     const std::string baseUrl = "https://auth-core-sz7p.vercel.app";
     const int appId = 2;
-    const std::string appSecret = "PxMzYyvs5zzA2f39MaXlMgJfGGY4qftQ";
+    const std::string appSecret = "zPshDS47PO1ADKNYvrRATYNft0RgRCEQ";
     const std::string appVersion = "1.0";
 
     auto response = AuthCore::Sdk::Verify(baseUrl, appId, appSecret, licenseKey, appVersion);
