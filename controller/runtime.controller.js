@@ -2,13 +2,40 @@ import crypto from "crypto";
 import "../module/connection.js";
 
 import LicenceSchemaModule from "../module/licence.module.js";
-
 import ApplicationSchemaModule from "../module/application.module.js";
-
 import RuntimeSessionModule from "../module/runtimeSession.module.js";
 import WebhookSchemaModule from "../module/webhook.module.js";
+import SystemBanModule from "../module/systemBan.module.js";
 
 const lastCallMap = new Map(); 
+
+// AES-256 Configuration (Recommended: Move key to .env)
+const ENCRYPTION_KEY = crypto.scryptSync("auth-core-master-key-2026", "salt", 32);
+const IV_LENGTH = 16;
+
+const encrypt = (text) => {
+    if (!text) return text;
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const cipher = crypto.createCipheriv("aes-256-cbc", ENCRYPTION_KEY, iv);
+    let encrypted = cipher.update(text);
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    return iv.toString("hex") + ":" + encrypted.toString("hex");
+};
+
+const decrypt = (text) => {
+    if (!text || typeof text !== "string" || !text.includes(":")) return text;
+    try {
+        const [ivHex, encryptedHex] = text.split(":");
+        const iv = Buffer.from(ivHex, "hex");
+        const encryptedText = Buffer.from(encryptedHex, "hex");
+        const decipher = crypto.createDecipheriv("aes-256-cbc", ENCRYPTION_KEY, iv);
+        let decrypted = decipher.update(encryptedText);
+        decrypted = Buffer.concat([decrypted, decipher.final()]);
+        return decrypted.toString();
+    } catch (e) {
+        return "[Decryption Error]";
+    }
+};
 
 const hashSignal = (signal) => {
     if (!signal || typeof signal !== "string") return signal;
@@ -34,8 +61,18 @@ export const validate = async (req, res) => {
   try {
 
     const { appId, licenceKey, hwid, signals, appVersion, integrityHash, appSecret } = req.body || {};
-    
-    // Loosen strict payload validation - allow missing version or hashes for generic C# tests
+    const ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress || "";
+    const hashedHwid = hashSignal(hwid);
+
+    // 1. GLOBAL BAN CHECK (BEFORE ANYTHING ELSE)
+    const existingBan = await SystemBanModule.findOne({ hwid: hashedHwid });
+    if (existingBan && existingBan.isPermanentlyBanned) {
+        return res.status(403).json({ 
+            status: false, 
+            message: "System Access Denied: This hardware has been permanently restricted due to multiple unauthorized access attempts. Please contact support." 
+        });
+    }
+
     if (!appId || !licenceKey || !appSecret) {
       return res.status(400).json({ 
           status: false, 
@@ -49,8 +86,40 @@ export const validate = async (req, res) => {
     }
 
     const licence = await LicenceSchemaModule.findOne({ key: licenceKey, appId: Number(appId) });
+    
     if (!licence) {
-      return res.status(403).json({ status: false, message: "Licence not valid for this app" });
+      // 2. TRACK FAILED ATTEMPT BY HWID
+      let banRecord = await SystemBanModule.findOne({ hwid: hashedHwid });
+      if (!banRecord) {
+          const encryptedSignals = {};
+          if (signals) {
+              for (const k in signals) encryptedSignals[k] = encrypt(signals[k]);
+          }
+          banRecord = new SystemBanModule({
+              hwid: hashedHwid,
+              encryptedSignals,
+              appId: Number(appId),
+              ip,
+              failedAttempts: 0
+          });
+      }
+      
+      banRecord.failedAttempts += 1;
+      banRecord.lastAttemptKey = licenceKey;
+      
+      if (banRecord.failedAttempts >= 3) {
+          banRecord.isPermanentlyBanned = true;
+          banRecord.bannedAt = new Date();
+          console.log(`[SECURITY] HWID ${hashedHwid} PERMANENTLY BANNED after 3 attempts.`);
+      }
+      
+      await banRecord.save();
+
+      return res.status(403).json({ 
+          status: false, 
+          message: "Licence not valid for this app",
+          warning: banRecord.isPermanentlyBanned ? "System Banned" : `Attempt ${banRecord.failedAttempts}/3`
+      });
     }
 
     if (licence.forceDisable || licence.Status === "ban") {
@@ -68,7 +137,6 @@ export const validate = async (req, res) => {
     lastCallMap.set(licenceKey, now);
 
     // BIND HWID ON FIRST LOGIN (WITH SHA-256 HASHING)
-    const hashedHwid = hashSignal(hwid);
     const hashedSignals = {};
     if (signals && typeof signals === "object") {
         for (const key in signals) {
@@ -203,6 +271,40 @@ export const heartbeat = async (req, res) => {
             currentStatus: licence.Status,
             customMessage: licence.customMessage || ""
         });
+    } catch (e) {
+        return res.status(500).json({ status: false, error: e.message });
+    }
+};
+
+export const getBannedSystems = async (req, res) => {
+    try {
+        const bans = await SystemBanModule.find().sort({ updatedAt: -1 });
+        
+        // Decrypt details for Admin visibility
+        const decryptedBans = bans.map(ban => {
+            const b = ban.toObject();
+            if (b.encryptedSignals) {
+                b.decryptedSignals = {};
+                for (const k in b.encryptedSignals) {
+                    b.decryptedSignals[k] = decrypt(b.encryptedSignals[k]);
+                }
+            }
+            return b;
+        });
+
+        return res.status(200).json({ status: true, data: decryptedBans });
+    } catch (e) {
+        return res.status(500).json({ status: false, error: e.message });
+    }
+};
+
+export const unbanSystem = async (req, res) => {
+    try {
+        const { hwid } = req.body;
+        if (!hwid) return res.status(400).json({ status: false, message: "HWID required" });
+
+        await SystemBanModule.deleteOne({ hwid });
+        return res.status(200).json({ status: true, message: "System ban revoked successfully" });
     } catch (e) {
         return res.status(500).json({ status: false, error: e.message });
     }

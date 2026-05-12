@@ -19,6 +19,7 @@ import Webhooks from "./pages/Webhooks.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import Sdk from "./pages/Sdk.jsx";
 import UserManagement from "./pages/UserManagement.jsx";
+import Security from "./pages/Security.jsx";
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/sdk" element={<Sdk />} />
         <Route path="/admin/dashboard" element={<RequireAuth role="admin"><AdminDashboard /></RequireAuth>} />
         <Route path="/admin/users" element={<RequireAuth role="admin"><UserManagement /></RequireAuth>} />
+        <Route path="/admin/security" element={<RequireAuth role="admin"><Security /></RequireAuth>} />
       </Route>
     </Routes>
   );

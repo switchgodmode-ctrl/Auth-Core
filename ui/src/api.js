@@ -250,3 +250,11 @@ export async function toggleUserMsgAccess(id, msgAccess) {
 export async function terminateUserSessions(id) {
   return request(`/user/admin/users/${id}/terminate-sessions`, { method: "POST" }, true);
 }
+
+export async function fetchBannedSystems() {
+  return request("/runtime/banned-systems", {}, true);
+}
+
+export async function unbanSystem(hwid) {
+  return request("/runtime/unban-system", { method: "POST", body: JSON.stringify({ hwid }) }, true);
+}
