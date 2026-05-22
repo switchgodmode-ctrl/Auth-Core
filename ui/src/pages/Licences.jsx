@@ -256,6 +256,47 @@ export default function Licences() {
                 onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--accent)"; }}
               >Logs</button>
 
+              {lic.lastSessionLat && lic.lastSessionLon ? (
+                <a
+                  href={`https://www.google.com/maps?q=${lic.lastSessionLat},${lic.lastSessionLon}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ 
+                    display: "inline-flex",
+                    alignItems: "center",
+                    textDecoration: "none",
+                    cursor: "pointer", 
+                    background: "rgba(16,185,129,0.1)", 
+                    border: "1px solid rgba(16,185,129,0.2)", 
+                    color: "var(--success, #10b981)", 
+                    padding: "4px 10px", 
+                    fontSize: "0.75rem", 
+                    borderRadius: "6px", 
+                    fontWeight: "600", 
+                    transition: "all 0.2s" 
+                  }}
+                  onMouseOver={e => { e.currentTarget.style.background = "var(--success, #10b981)"; e.currentTarget.style.color = "#fff"; }} 
+                  onMouseOut={e => { e.currentTarget.style.background = "rgba(16,185,129,0.1)"; e.currentTarget.style.color = "var(--success, #10b981)"; }}
+                  title="View last connection on Google Maps"
+                >Loc</a>
+              ) : (
+                <button
+                  disabled
+                  style={{ 
+                    cursor: "not-allowed", 
+                    background: "transparent", 
+                    border: "1px solid var(--border)", 
+                    color: "var(--muted)", 
+                    padding: "4px 10px", 
+                    fontSize: "0.75rem", 
+                    borderRadius: "6px", 
+                    fontWeight: "500", 
+                    opacity: 0.4 
+                  }}
+                  title="No location telemetry available yet"
+                >Loc</button>
+              )}
+
               <button 
                 onClick={() => { setDaysKey(lic.key); setDaysAppId(lic.appId); setDaysValue(""); setDaysOpen(true); }}
                 style={{ cursor: "pointer", background: "transparent", border: "1px solid var(--border)", color: "var(--text)", padding: "4px 10px", fontSize: "0.75rem", borderRadius: "6px", fontWeight: "500", transition: "all 0.2s" }}
