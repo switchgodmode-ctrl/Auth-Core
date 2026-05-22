@@ -305,6 +305,20 @@ export default function Dashboard() {
                   <div>📡 <strong>ISP:</strong> {selectedMapLic.lastSessionIsp}</div>
                   <div>💻 <strong>HWID:</strong> {selectedMapLic.hwid ? "Bound" : "Not Bound"}</div>
                   <div>🛡️ <strong>Score:</strong> <span style={{ color: selectedMapLic.trustScore < 50 ? "var(--error, #ef4444)" : "var(--success, #10b981)", fontWeight: "700" }}>{selectedMapLic.trustScore}</span></div>
+                  {selectedMapLic.lastSessionLat && selectedMapLic.lastSessionLon ? (
+                    <div style={{ borderTop: "1px solid var(--border)", marginTop: "8px", paddingTop: "8px", textAlign: "right" }}>
+                      <a 
+                        href={`https://www.google.com/maps?q=${selectedMapLic.lastSessionLat},${selectedMapLic.lastSessionLon}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        style={{ color: "var(--accent)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.75rem", fontWeight: "700", transition: "opacity 0.2s" }}
+                        onMouseOver={e => e.currentTarget.style.opacity = 0.8}
+                        onMouseOut={e => e.currentTarget.style.opacity = 1}
+                      >
+                        🗺️ Open in Google Maps &rarr;
+                      </a>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             )}

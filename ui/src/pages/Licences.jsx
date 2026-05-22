@@ -405,8 +405,23 @@ export default function Licences() {
                           
                           <div style={{ display: "flex", alignItems: "center", gap: "6px", overflow: "hidden" }}>
                             <span style={{ fontSize: "1.1rem" }} title={session.country || "Local Host"}>{getFlagEmoji(session.countryCode)}</span>
-                            <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                              <span style={{ color: "var(--text)", fontWeight: "500", fontSize: "0.75rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.city || "Home"}, {session.country || "Local Network"}</span>
+                            <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <span style={{ color: "var(--text)", fontWeight: "500", fontSize: "0.75rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.city || "Home"}, {session.country || "Local Network"}</span>
+                                {session.latitude && session.longitude ? (
+                                  <a 
+                                    href={`https://www.google.com/maps?q=${session.latitude},${session.longitude}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    style={{ color: "var(--accent)", fontSize: "0.75rem", textDecoration: "none", display: "inline-flex", alignItems: "center", transition: "opacity 0.2s" }}
+                                    onMouseOver={e => e.currentTarget.style.opacity = 0.7}
+                                    onMouseOut={e => e.currentTarget.style.opacity = 1}
+                                    title="View exact location on Google Maps"
+                                  >
+                                    🗺️
+                                  </a>
+                                ) : null}
+                              </div>
                               <span style={{ color: "var(--muted)", fontSize: "0.6rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={session.isp}>{session.isp || "Loopback"}</span>
                             </div>
                           </div>
