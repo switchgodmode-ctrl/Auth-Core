@@ -216,6 +216,74 @@ export const validate = async (req, res) => {
 
     const geo = await resolveGeoIP(ip);
 
+    // Option 1: Automated Fraud Detection & Impossible Travel / Sharing Checks
+    const lastSession = await RuntimeSessionModule.findOne({ licenceId: licence._id }).sort({ lastSeen: -1 });
+    let fraudDetected = false;
+    let fraudReason = "";
+
+    if (lastSession) {
+      // 1. HWID Sharing Check: If HWID changed and the last seen session was within 5 minutes (300,000ms)
+      if (lastSession.hwid && lastSession.hwid !== hashedHwid) {
+        const timeDiffMs = new Date() - new Date(lastSession.lastSeen);
+        if (timeDiffMs < 300000) {
+          fraudDetected = true;
+          fraudReason = "License shared: Simultaneous execution from multiple hardware environments detected.";
+        }
+      }
+
+      // 2. Impossible Travel Check: If client coordinates changed between checking-in sessions
+      if (!fraudDetected && lastSession.latitude && lastSession.longitude && geo.latitude && geo.longitude) {
+        const lat1 = lastSession.latitude;
+        const lon1 = lastSession.longitude;
+        const lat2 = geo.latitude;
+        const lon2 = geo.longitude;
+
+        // Haversine distance
+        const R = 6371; // km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = 
+          Math.sin(dLat/2) * Math.sin(dLat/2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+          Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const distanceKm = R * c;
+
+        const timeDiffHours = (new Date() - new Date(lastSession.lastSeen)) / 3600000;
+        if (timeDiffHours > 0 && distanceKm > 100) {
+          const travelSpeedKmh = distanceKm / timeDiffHours;
+          if (travelSpeedKmh > 800) {
+            fraudDetected = true;
+            fraudReason = `Suspicious geolocation jump: Relocated ${Math.round(distanceKm)}km at a physically impossible travel speed (${Math.round(travelSpeedKmh)} km/h).`;
+          }
+        }
+      }
+    }
+
+    if (fraudDetected) {
+      licence.trustScore = 0;
+      licence.Status = "ban";
+      licence.customMessage = fraudReason;
+      await licence.save();
+
+      try {
+        dispatchWebhooks(appId, "LICENCE_BANNED", { 
+          licenceKey, 
+          reason: fraudReason, 
+          ip, 
+          hwid: hashedHwid 
+        });
+      } catch (wErr) {
+        console.error("Webhook dispatch failed:", wErr);
+      }
+
+      return res.status(403).json({
+        status: false,
+        allowed: false,
+        message: fraudReason
+      });
+    }
+
     await RuntimeSessionModule.create({
       licenceId: licence._id,
       ip,
@@ -227,6 +295,8 @@ export const validate = async (req, res) => {
       region: geo.region,
       city: geo.city,
       isp: geo.isp,
+      latitude: geo.latitude || 0,
+      longitude: geo.longitude || 0,
       lastSeen: new Date()
     });
 
@@ -248,7 +318,36 @@ export const validate = async (req, res) => {
     };
 
     if (allowed && app.remotePayload) {
-        responsePayload.remotePayload = app.remotePayload;
+        // Option 3: Dynamic Variable Payloads & Geo-Fencing
+        try {
+            const config = JSON.parse(app.remotePayload);
+            if (config.geofence) {
+                // Geo-Fencing Payload Rule: Deliver specific sub-payload based on country code
+                const countryCode = geo.countryCode?.toUpperCase();
+                responsePayload.remotePayload = config.geofence[countryCode] || config.geofence["default"] || app.remotePayload;
+            } else if (config.rotator) {
+                // Dynamic Rotation Rule: Deliver a randomized sub-payload containing dynamic verification tokens
+                if (Array.isArray(config.rotator) && config.rotator.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * config.rotator.length);
+                    const selected = config.rotator[randomIndex];
+                    
+                    const stamp = Date.now();
+                    const hashSignature = crypto.createHash("sha256").update(selected + stamp).digest("hex");
+                    
+                    responsePayload.remotePayload = JSON.stringify({
+                        payload: selected,
+                        timestamp: stamp,
+                        signature: hashSignature
+                    });
+                } else {
+                    responsePayload.remotePayload = app.remotePayload;
+                }
+            } else {
+                responsePayload.remotePayload = app.remotePayload;
+            }
+        } catch {
+            responsePayload.remotePayload = app.remotePayload;
+        }
     }
 
     return res.status(200).json(responsePayload);

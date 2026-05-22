@@ -48,6 +48,49 @@ function Sparkline({ data, color, height = 160 }) {
 export default function Dashboard() {
   const [licences, setLicences] = useState([]);
   const [apps, setApps]         = useState([]);
+  const [selectedMapLic, setSelectedMapLic] = useState(null);
+
+  const activeSessions = useMemo(() => {
+    return licences.filter(l => l.isCurrentlyActive && l.lastSessionLat && l.lastSessionLon);
+  }, [licences]);
+
+  const incidents = useMemo(() => {
+    return licences.filter(l => l.Status === "ban" && l.trustScore === 0 && l.customMessage);
+  }, [licences]);
+
+  const geoStats = useMemo(() => {
+    const counts = {};
+    const flagMap = {
+      US: "🇺🇸", IN: "🇮🇳", DE: "🇩🇪", JP: "🇯🇵", GB: "🇬🇧", FR: "🇫🇷", CA: "🇨🇦",
+      AU: "🇦🇺", BR: "🇧🇷", RU: "🇺🇦", CN: "🇨🇳", SG: "🇸🇬", ZA: "🇿🇦", NL: "🇳🇱"
+    };
+    licences.forEach(l => {
+      if (l.lastSessionCountryCode && l.lastSessionCountry) {
+        const code = l.lastSessionCountryCode.toUpperCase();
+        if (!counts[code]) {
+          counts[code] = { 
+            country: l.lastSessionCountry, 
+            flag: flagMap[code] || "🏳️", 
+            count: 0 
+          };
+        }
+        counts[code].count += 1;
+      }
+    });
+    return Object.values(counts).sort((a, b) => b.count - a.count);
+  }, [licences]);
+
+  const cities = [
+    { name: "New York", lat: 40.7128, lon: -74.0060 },
+    { name: "London", lat: 51.5074, lon: -0.1278 },
+    { name: "Frankfurt", lat: 50.1109, lon: 8.6821 },
+    { name: "Tokyo", lat: 35.6762, lon: 139.6503 },
+    { name: "Mumbai", lat: 19.0760, lon: 72.8777 },
+    { name: "Sydney", lat: -33.8688, lon: 151.2093 },
+    { name: "Sao Paulo", lat: -23.5505, lon: -46.6333 },
+    { name: "Singapore", lat: 1.3521, lon: 103.8198 },
+    { name: "Silicon Valley", lat: 37.7749, lon: -122.4194 }
+  ];
 
   useEffect(() => {
     (async () => {
@@ -150,6 +193,181 @@ export default function Dashboard() {
           </motion.div>
         ))}
       </div>
+
+      {/* ── Live Security Map & Traffic Panel ── */}
+      <motion.div 
+        className="db-panel map-panel animate-fade-in" 
+        initial="hidden" 
+        animate="show" 
+        custom={3} 
+        variants={fadeUp}
+        style={{ 
+          display: "grid", 
+          gridTemplateColumns: "1.8fr 1fr", 
+          gap: "24px", 
+          marginTop: "24px", 
+          minHeight: "400px", 
+          background: "var(--surface)", 
+          border: "1px solid var(--border)", 
+          borderRadius: "16px", 
+          padding: "24px",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
+          overflow: "hidden"
+        }}
+      >
+        {/* Left column: SVG Interactive Network Map */}
+        <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: "700", color: "var(--text)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              <span className="live-dot" style={{ width: 8, height: 8, background: "#10b981", borderRadius: "50%", display: "inline-block", boxShadow: "0 0 10px #10b981" }} /> Live Telemetry Session Map
+            </h3>
+            <p style={{ fontSize: "0.8rem", color: "var(--muted)", margin: "4px 0 0 0" }}>Interactive global mesh. Active user sessions are plotted live.</p>
+          </div>
+          
+          <div style={{ position: "relative", flex: 1, background: "rgba(0,0,0,0.2)", borderRadius: "12px", border: "1px solid var(--border)", overflow: "hidden", minHeight: "280px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {/* World Grid SVG */}
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.1 }}>
+              <defs>
+                <pattern id="grid-pattern" width="10" height="10" patternUnits="userSpaceOnUse">
+                  <path d="M 10 0 L 0 0 0 10" fill="none" stroke="var(--text)" strokeWidth="0.5" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+            </svg>
+            
+            <svg viewBox="0 0 1000 500" style={{ width: "100%", height: "100%", zIndex: 1 }}>
+              {/* Draw cyber mesh connections */}
+              {cities.map((city, idx) => 
+                cities.slice(idx + 1).map((target, tIdx) => {
+                  const x1 = ((city.lon + 180) / 360) * 1000;
+                  const y1 = ((90 - city.lat) / 180) * 500;
+                  const x2 = ((target.lon + 180) / 360) * 1000;
+                  const y2 = ((90 - target.lat) / 180) * 500;
+                  if ((idx + tIdx) % 3 === 0) {
+                    return (
+                      <line 
+                        key={`${idx}-${tIdx}`}
+                        x1={x1} y1={y1} x2={x2} y2={y2} 
+                        stroke="var(--accent)" 
+                        strokeWidth="0.5" 
+                        strokeDasharray="4,8"
+                        opacity="0.15"
+                      />
+                    );
+                  }
+                  return null;
+                })
+              )}
+              
+              {/* Draw major anchor cities */}
+              {cities.map((city, idx) => {
+                const x = ((city.lon + 180) / 360) * 1000;
+                const y = ((90 - city.lat) / 180) * 500;
+                return (
+                  <g key={idx}>
+                    <circle cx={x} cy={y} r="3" fill="var(--muted)" opacity="0.3" />
+                    <text x={x + 6} y={y + 3} fill="var(--muted)" fontSize="8" fontFamily="monospace" opacity="0.4">{city.name}</text>
+                  </g>
+                );
+              })}
+
+              {/* Plot active licences */}
+              {activeSessions.map((lic, idx) => {
+                const lat = lic.lastSessionLat || 0;
+                const lon = lic.lastSessionLon || 0;
+                const x = ((lon + 180) / 360) * 1000;
+                const y = ((90 - lat) / 180) * 500;
+                const isCompromised = lic.trustScore === 0 || lic.Status === "ban";
+                
+                return (
+                  <g key={idx} style={{ cursor: "pointer" }} onClick={() => setSelectedMapLic(lic)}>
+                    <circle cx={x} cy={y} r="16" fill={isCompromised ? "rgba(239,68,68,0.15)" : "rgba(16,185,129,0.15)"} />
+                    <circle cx={x} cy={y} r="6" fill={isCompromised ? "var(--error, #ef4444)" : "var(--success, #10b981)"} />
+                    <circle cx={x} cy={y} r="2" fill="#fff" />
+                    <circle cx={x} cy={y} r="6" fill="none" stroke={isCompromised ? "var(--error, #ef4444)" : "var(--success, #10b981)"} strokeWidth="1">
+                      <animate attributeName="r" values="6;20;6" dur="3s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.8;0;0.8" dur="3s" repeatCount="indefinite" />
+                    </circle>
+                  </g>
+                );
+              })}
+            </svg>
+
+            {/* Selected Key Details Overlay */}
+            {selectedMapLic && (
+              <div style={{ position: "absolute", bottom: "12px", left: "12px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "8px", padding: "12px", width: "calc(100% - 24px)", maxWidth: "300px", zIndex: 10, fontSize: "0.8rem", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <span style={{ fontWeight: "700", fontFamily: "monospace", color: "var(--accent)" }}>{String(selectedMapLic.key).slice(0, 14)}...</span>
+                  <button onClick={() => setSelectedMapLic(null)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "0.85rem" }}>✕</button>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px", color: "var(--text)" }}>
+                  <div>📍 <strong>Location:</strong> {selectedMapLic.lastSessionCity}, {selectedMapLic.lastSessionCountry}</div>
+                  <div>📡 <strong>ISP:</strong> {selectedMapLic.lastSessionIsp}</div>
+                  <div>💻 <strong>HWID:</strong> {selectedMapLic.hwid ? "Bound" : "Not Bound"}</div>
+                  <div>🛡️ <strong>Score:</strong> <span style={{ color: selectedMapLic.trustScore < 50 ? "var(--error, #ef4444)" : "var(--success, #10b981)", fontWeight: "700" }}>{selectedMapLic.trustScore}</span></div>
+                </div>
+              </div>
+            )}
+            
+            {activeSessions.length === 0 && (
+              <div style={{ position: "absolute", color: "var(--muted)", fontSize: "0.85rem", fontStyle: "italic", textAlign: "center" }}>
+                📡 Waiting for incoming telemetry signals...<br/>
+                <span style={{ fontSize: "0.75rem", opacity: 0.6 }}>(Try executing a client heartbeat check-in)</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right column: Threat Logs & Geo Statistics */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px", borderLeft: "1px solid var(--border)", paddingLeft: "24px" }}>
+          <div>
+            <h4 style={{ fontSize: "0.9rem", fontWeight: "700", color: "var(--text)", margin: 0 }}>Active Threats & Incidents</h4>
+            <p style={{ fontSize: "0.75rem", color: "var(--muted)", margin: "2px 0 0 0" }}>Real-time impossible travel & sharing anomalies.</p>
+          </div>
+          
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "10px", maxHeight: "200px", overflowY: "auto" }}>
+            {incidents.length > 0 ? (
+              incidents.map((inc, i) => (
+                <div key={i} style={{ padding: "10px 12px", background: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "8px", fontSize: "0.75rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <span style={{ color: "var(--error, #ef4444)", fontWeight: "700" }}>⚠️ INCIDENT RESOLVED</span>
+                    <span style={{ fontSize: "0.65rem", color: "var(--muted)" }}>Just now</span>
+                  </div>
+                  <div style={{ color: "var(--text)", fontFamily: "monospace", fontSize: "0.7rem", marginBottom: "4px" }}>Key: {String(inc.key).slice(0, 14)}...</div>
+                  <div style={{ color: "var(--muted)", lineHeight: 1.4 }}>{inc.customMessage}</div>
+                </div>
+              ))
+            ) : (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", border: "1px dashed var(--border)", borderRadius: "8px", padding: "20px", textAlign: "center", color: "var(--muted)", fontSize: "0.75rem" }}>
+                <div>
+                  <div style={{ fontSize: "1.2rem", marginBottom: "4px" }}>🛡️</div>
+                  No active threat vectors detected. Infrastructure secure.
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h4 style={{ fontSize: "0.85rem", fontWeight: "700", color: "var(--text)", marginBottom: "8px" }}>Top Global Markets</h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {geoStats.slice(0, 3).map((stat, idx) => (
+                <div key={idx}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: "3px" }}>
+                    <span style={{ fontWeight: "600", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <span>{stat.flag}</span> {stat.country}
+                    </span>
+                    <span style={{ color: "var(--muted)" }}>{stat.count} ({Math.round((stat.count / licences.length) * 100)}%)</span>
+                  </div>
+                  <div style={{ height: "4px", background: "rgba(255,255,255,0.05)", borderRadius: "2px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${(stat.count / licences.length) * 100}%`, background: "var(--accent)", borderRadius: "2px" }} />
+                  </div>
+                </div>
+              ))}
+              {geoStats.length === 0 && <div style={{ fontSize: "0.75rem", color: "var(--muted)", fontStyle: "italic" }}>No location data indexed yet.</div>}
+            </div>
+          </div>
+        </div>
+      </motion.div>
 
       {/* ── Charts ── */}
       <div className="db-charts">

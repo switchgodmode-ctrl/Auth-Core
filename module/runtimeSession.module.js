@@ -37,6 +37,14 @@ const RuntimeSessionSchema = mongoose.Schema({
     type: String,
     default: "Loopback"
   },
+  latitude: {
+    type: Number,
+    default: 0
+  },
+  longitude: {
+    type: Number,
+    default: 0
+  },
   lastSeen: {
     type: Date,
     default: Date.now

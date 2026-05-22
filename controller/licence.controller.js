@@ -83,11 +83,21 @@ export const fetch = async (req, res) => {
             if (latestSession) {
                 lic.lastSessionSeen = latestSession.lastSeen;
                 lic.lastSessionCreated = latestSession.createdAt;
+                lic.lastSessionLat = latestSession.latitude || 0;
+                lic.lastSessionLon = latestSession.longitude || 0;
+                lic.lastSessionCountryCode = latestSession.countryCode || "UN";
+                lic.lastSessionCountry = latestSession.country || "";
+                lic.lastSessionCity = latestSession.city || "";
                 const isHeartbeatActive = (new Date() - new Date(latestSession.lastSeen)) < 30000;
                 lic.isCurrentlyActive = isHeartbeatActive && lic.Status === "online";
             } else {
                 lic.lastSessionSeen = null;
                 lic.lastSessionCreated = null;
+                lic.lastSessionLat = 0;
+                lic.lastSessionLon = 0;
+                lic.lastSessionCountryCode = "UN";
+                lic.lastSessionCountry = "";
+                lic.lastSessionCity = "";
                 lic.isCurrentlyActive = false;
             }
             enrichedLicences.push(lic);
@@ -112,11 +122,21 @@ export const fetchMine = async (req, res) => {
             if (latestSession) {
                 lic.lastSessionSeen = latestSession.lastSeen;
                 lic.lastSessionCreated = latestSession.createdAt;
+                lic.lastSessionLat = latestSession.latitude || 0;
+                lic.lastSessionLon = latestSession.longitude || 0;
+                lic.lastSessionCountryCode = latestSession.countryCode || "UN";
+                lic.lastSessionCountry = latestSession.country || "";
+                lic.lastSessionCity = latestSession.city || "";
                 const isHeartbeatActive = (new Date() - new Date(latestSession.lastSeen)) < 30000;
                 lic.isCurrentlyActive = isHeartbeatActive && lic.Status === "online";
             } else {
                 lic.lastSessionSeen = null;
                 lic.lastSessionCreated = null;
+                lic.lastSessionLat = 0;
+                lic.lastSessionLon = 0;
+                lic.lastSessionCountryCode = "UN";
+                lic.lastSessionCountry = "";
+                lic.lastSessionCity = "";
                 lic.isCurrentlyActive = false;
             }
             enrichedLicences.push(lic);
