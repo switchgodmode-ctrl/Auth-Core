@@ -55,6 +55,10 @@ const LicenceSchema = mongoose.Schema({
   customMessage: {
     type: String,
     default: ""
+  },
+  note: {
+    type: String,
+    default: ""
   }
 
 

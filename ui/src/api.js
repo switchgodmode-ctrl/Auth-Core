@@ -131,8 +131,8 @@ export async function deleteWebhook(id) {
   return request("/webhook/delete", { method: "DELETE", body: JSON.stringify({ id }) }, true);
 }
 
-export async function createLicenceKey(key, Day, appId, features = {}) {
-  return request("/licence/save", { method: "POST", body: JSON.stringify({ key, Day, appId, features }) }, true);
+export async function createLicenceKey(key, Day, appId, features = {}, note = "") {
+  return request("/licence/save", { method: "POST", body: JSON.stringify({ key, Day, appId, features, note }) }, true);
 }
 
 export async function banUnbanLicence(licenceKey, appId, action) {

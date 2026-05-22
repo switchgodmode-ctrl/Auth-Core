@@ -44,7 +44,7 @@ export const stats = async (req, res) => {
 const rateMap = new Map(); 
 
 export const createLicence = async (req, res) => {
-  const { resellerId, appId, key, Day, features } = req.body;
+  const { resellerId, appId, key, Day, features, note } = req.body;
   try {
     const reseller = await ResellerModule.findOne({ _id: Number(resellerId) });
     if (!reseller) return res.status(404).json({ status: false, message: "Reseller not found" });
@@ -61,9 +61,22 @@ export const createLicence = async (req, res) => {
     }
     bucket.count += 1;
     rateMap.set(resellerId, bucket);
+    
+    // Calculate tiered credit cost
+    const days = Number(Day);
+    let creditCost = 1;
+    if (days <= 1) creditCost = 1;
+    else if (days <= 3) creditCost = 2;
+    else if (days <= 7) creditCost = 4;
+    else if (days <= 30) creditCost = 10;
+    else if (days >= 365) creditCost = 50;
+    else creditCost = Math.min(50, Math.max(1, Math.floor(days * 0.35)));
+
     // credit check
-    if (reseller.credits <= 0) return res.status(403).json({ status: false, message: "Insufficient credits" });
-    reseller.credits -= 1;
+    if (reseller.credits < creditCost) {
+      return res.status(403).json({ status: false, message: `Insufficient credits. This duration requires ${creditCost} credits.` });
+    }
+    reseller.credits -= creditCost;
     await reseller.save();
     // create licence
     const lastLicence = await LicenceSchemaModule.findOne().sort({ _id: -1 });
@@ -76,16 +89,17 @@ export const createLicence = async (req, res) => {
         Day: Number(Day),
         Status: "unbanned",
         features: features || {},
+        note: note || "",
         resellerId: Number(resellerId)
       });
       reseller.issuedLicences += 1;
       reseller.commissionEarned += reseller.commissionPerLicence;
       reseller.trustImpact += 0.5;
       await reseller.save();
-      return res.status(200).json({ status: true });
+      return res.status(200).json({ status: true, creditCost });
     } catch (err) {
   
-      reseller.credits += 1;
+      reseller.credits += creditCost;
       reseller.trustImpact -= 0.5;
       await reseller.save();
       return res.status(400).json({ status: false, error: err.message });

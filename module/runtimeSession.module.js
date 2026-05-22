@@ -17,6 +17,26 @@ const RuntimeSessionSchema = mongoose.Schema({
   integrityHash: {
     type: String
   },
+  country: {
+    type: String,
+    default: "Local Host"
+  },
+  countryCode: {
+    type: String,
+    default: "LH"
+  },
+  region: {
+    type: String,
+    default: "Local Network"
+  },
+  city: {
+    type: String,
+    default: "Home"
+  },
+  isp: {
+    type: String,
+    default: "Loopback"
+  },
   lastSeen: {
     type: Date,
     default: Date.now

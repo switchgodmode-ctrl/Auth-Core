@@ -19,7 +19,19 @@ export default function Applications() {
   const [description, setDescription] = useState("");
   const [licKey, setLicKey] = useState("");
   const [licDays, setLicDays] = useState("365");
+  const [licNote, setLicNote] = useState("");
   const [selectedAppId, setSelectedAppId] = useState("");
+
+  const estimatedCredits = useMemo(() => {
+    const days = Number(licDays || 0);
+    if (days <= 0) return 0;
+    if (days <= 1) return 1;
+    if (days <= 3) return 2;
+    if (days <= 7) return 4;
+    if (days <= 30) return 10;
+    if (days >= 365) return 50;
+    return Math.min(50, Math.max(1, Math.floor(days * 0.35)));
+  }, [licDays]);
 
   // Version form state
   const [versionAppId, setVersionAppId] = useState(null);
@@ -79,10 +91,11 @@ export default function Applications() {
       showStatus("Select a target application", "error");
       return;
     }
-    const r = await createLicenceKey(licKey.trim(), Number(licDays), Number(selectedAppId), {});
+    const r = await createLicenceKey(licKey.trim(), Number(licDays), Number(selectedAppId), {}, licNote.trim());
     if (r.status) {
       showStatus(`Licence issued to App ID ${selectedAppId}`, "success");
       setLicKey("");
+      setLicNote("");
       setKeyModalOpen(false);
       await refresh();
     } else {
@@ -379,9 +392,19 @@ export default function Applications() {
                   <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", color: "var(--text)", marginBottom: "8px" }}>Custom Seed / Token (Optional)</label>
                   <input placeholder="Leave blank to auto-generate" value={licKey} onChange={e => setLicKey(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)", outline: "none", fontSize: "0.9rem", transition: "border-color 0.2s" }} onFocus={e => e.target.style.borderColor = "var(--accent)"} onBlur={e => e.target.style.borderColor = "var(--border)"} />
                 </div>
+                <div style={{ display: "flex", gap: "16px", alignItems: "flex-end" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", color: "var(--text)", marginBottom: "8px" }}>Time-to-Live (Days) <span style={{ color: "var(--error, #ef4444)" }}>*</span></label>
+                    <input type="number" min="1" value={licDays} onChange={e => setLicDays(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)", outline: "none", fontSize: "0.9rem", transition: "border-color 0.2s" }} onFocus={e => e.target.style.borderColor = "var(--accent)"} onBlur={e => e.target.style.borderColor = "var(--border)"} />
+                  </div>
+                  <div style={{ padding: "8px 16px", background: "rgba(99, 102, 241, 0.1)", border: "1px solid rgba(99, 102, 241, 0.2)", borderRadius: "8px", height: "45px", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: "140px" }}>
+                    <span style={{ fontSize: "0.6rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: "700" }}>Reseller Cost</span>
+                    <span style={{ fontSize: "0.9rem", color: "var(--accent)", fontWeight: "700" }}>{estimatedCredits} Credit{estimatedCredits !== 1 ? 's' : ''}</span>
+                  </div>
+                </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", color: "var(--text)", marginBottom: "8px" }}>Time-to-Live (Days) <span style={{ color: "var(--error, #ef4444)" }}>*</span></label>
-                  <input type="number" min="1" value={licDays} onChange={e => setLicDays(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)", outline: "none", fontSize: "0.9rem", transition: "border-color 0.2s" }} onFocus={e => e.target.style.borderColor = "var(--accent)"} onBlur={e => e.target.style.borderColor = "var(--border)"} />
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", color: "var(--text)", marginBottom: "8px" }}>Reseller Note / Custom Note</label>
+                  <input placeholder="e.g. Generated for client #541" value={licNote} onChange={e => setLicNote(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)", outline: "none", fontSize: "0.9rem", transition: "border-color 0.2s" }} onFocus={e => e.target.style.borderColor = "var(--accent)"} onBlur={e => e.target.style.borderColor = "var(--border)"} />
                 </div>
               </div>
               <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "flex-end", gap: "12px" }}>

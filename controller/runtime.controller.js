@@ -6,6 +6,7 @@ import ApplicationSchemaModule from "../module/application.module.js";
 import RuntimeSessionModule from "../module/runtimeSession.module.js";
 import WebhookSchemaModule from "../module/webhook.module.js";
 import SystemBanModule from "../module/systemBan.module.js";
+import { resolveGeoIP } from "../utils/geoip.js";
 
 const lastCallMap = new Map(); 
 
@@ -213,12 +214,19 @@ export const validate = async (req, res) => {
     }
     await licence.save();
 
+    const geo = await resolveGeoIP(ip);
+
     await RuntimeSessionModule.create({
       licenceId: licence._id,
       ip,
       hwid: hashedHwid,
       appVersion,
       integrityHash,
+      country: geo.country,
+      countryCode: geo.countryCode,
+      region: geo.region,
+      city: geo.city,
+      isp: geo.isp,
       lastSeen: new Date()
     });
 

@@ -36,10 +36,22 @@ export const save = async (req, res) => {
 
         if (req.body.resellerId) {
             const reseller = await ResellerModule.findOne({ _id: Number(req.body.resellerId) });
-            if (!reseller || reseller.credits <= 0) {
-                return res.status(403).json({ status: false, error: "Insufficient reseller credits" });
+            if (!reseller) {
+                return res.status(404).json({ status: false, error: "Reseller not found" });
             }
-            reseller.credits -= 1;
+            const days = Number(req.body.Day || 1);
+            let creditCost = 1;
+            if (days <= 1) creditCost = 1;
+            else if (days <= 3) creditCost = 2;
+            else if (days <= 7) creditCost = 4;
+            else if (days <= 30) creditCost = 10;
+            else if (days >= 365) creditCost = 50;
+            else creditCost = Math.min(50, Math.max(1, Math.floor(days * 0.35)));
+
+            if (reseller.credits < creditCost) {
+                return res.status(403).json({ status: false, error: `Insufficient reseller credits. Need ${creditCost} credits for this key duration.` });
+            }
+            reseller.credits -= creditCost;
             await reseller.save();
         }
 

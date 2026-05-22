@@ -4,6 +4,19 @@ import { fetchLicences, banUnbanLicence, updateLicenceDays, runExpiryCheck, rese
 import Button from "../components/ui/Button.jsx";
 import Input from "../components/ui/Input.jsx";
 
+function getFlagEmoji(countryCode) {
+  if (!countryCode || countryCode === "LH" || countryCode === "UN") return "🌐";
+  const codePoints = countryCode
+    .toUpperCase()
+    .split("")
+    .map(char => 127397 + char.charCodeAt(0));
+  try {
+    return String.fromCodePoint(...codePoints);
+  } catch {
+    return "🌐";
+  }
+}
+
 export default function Licences() {
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState({ msg: "", type: "" });
@@ -171,6 +184,11 @@ export default function Licences() {
             
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               <div style={{ fontFamily: "monospace", fontSize: "0.9rem", color: "var(--text)", fontWeight: "600" }}>{String(lic.key).slice(0, 20)}...</div>
+              {lic.note && (
+                <div style={{ fontSize: "0.75rem", color: "var(--accent)", fontStyle: "italic", opacity: 0.85, display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ fontSize: "0.85rem" }}>📝</span> {lic.note}
+                </div>
+              )}
               {lic.activatedAt ? (
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <div style={{ width: "100%", maxWidth: "120px", height: "4px", background: "rgba(255,255,255,0.1)", borderRadius: "2px", overflow: "hidden" }}>
@@ -364,8 +382,9 @@ export default function Licences() {
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr 1.8fr 1.6fr 1.6fr 1fr", gap: "12px", padding: "8px 12px", background: "var(--surface2)", fontSize: "0.7rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.3fr 0.6fr 1.5fr 1.3fr 1.3fr 0.8fr", gap: "8px", padding: "8px 12px", background: "var(--surface2)", fontSize: "0.7rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)" }}>
                       <div>IP Address</div>
+                      <div>Location (Geo)</div>
                       <div>App Ver</div>
                       <div>Hashed HWID</div>
                       <div>Connected (Online)</div>
@@ -381,10 +400,19 @@ export default function Licences() {
                       const durationStr = diffMins === 0 ? `${diffSecs}s` : `${diffMins}m ${diffSecs}s`;
                       
                       return (
-                        <div key={session._id || index} style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr 1.8fr 1.6fr 1.6fr 1fr", gap: "12px", padding: "12px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", alignItems: "center", fontSize: "0.8rem" }}>
+                        <div key={session._id || index} style={{ display: "grid", gridTemplateColumns: "1.1fr 1.3fr 0.6fr 1.5fr 1.3fr 1.3fr 0.8fr", gap: "8px", padding: "12px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", alignItems: "center", fontSize: "0.8rem" }}>
                           <div style={{ fontFamily: "monospace", color: "var(--text)", fontWeight: "600" }}>{session.ip || "127.0.0.1"}</div>
+                          
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", overflow: "hidden" }}>
+                            <span style={{ fontSize: "1.1rem" }} title={session.country || "Local Host"}>{getFlagEmoji(session.countryCode)}</span>
+                            <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                              <span style={{ color: "var(--text)", fontWeight: "500", fontSize: "0.75rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.city || "Home"}, {session.country || "Local Network"}</span>
+                              <span style={{ color: "var(--muted)", fontSize: "0.6rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={session.isp}>{session.isp || "Loopback"}</span>
+                            </div>
+                          </div>
+
                           <div style={{ color: "var(--muted)" }}>v{session.appVersion || "1.0"}</div>
-                          <div style={{ fontFamily: "monospace", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={session.hwid}>{session.hwid ? `${session.hwid.slice(0, 14)}...` : "N/A"}</div>
+                          <div style={{ fontFamily: "monospace", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={session.hwid}>{session.hwid ? `${session.hwid.slice(0, 10)}...` : "N/A"}</div>
                           <div style={{ color: "var(--text)" }}>
                             {start.toLocaleDateString([], {month: 'short', day: 'numeric'})} {start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </div>
