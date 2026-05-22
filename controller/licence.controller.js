@@ -9,6 +9,8 @@ import ResellerModule from "../module/reseller.module.js";
 
 import UserSchemaModule from "../module/user.module.js";
 
+import RuntimeSessionModule from "../module/runtimeSession.module.js";
+
 export const save = async (req, res) => {
     try {
 
@@ -60,10 +62,26 @@ export const fetch = async (req, res) => {
     else
         condition_obj = {};
 
-    const licenceList = await LicenceSchemaModule.find(condition_obj);
+    const licenceList = await LicenceSchemaModule.find(condition_obj).lean();
 
-    if (licenceList.length > 0)
-        res.status(200).json({ status: true, info: licenceList });
+    if (licenceList.length > 0) {
+        const enrichedLicences = [];
+        for (const lic of licenceList) {
+            const latestSession = await RuntimeSessionModule.findOne({ licenceId: lic._id }).sort({ lastSeen: -1 });
+            if (latestSession) {
+                lic.lastSessionSeen = latestSession.lastSeen;
+                lic.lastSessionCreated = latestSession.createdAt;
+                const isHeartbeatActive = (new Date() - new Date(latestSession.lastSeen)) < 30000;
+                lic.isCurrentlyActive = isHeartbeatActive && lic.Status === "online";
+            } else {
+                lic.lastSessionSeen = null;
+                lic.lastSessionCreated = null;
+                lic.isCurrentlyActive = false;
+            }
+            enrichedLicences.push(lic);
+        }
+        res.status(200).json({ status: true, info: enrichedLicences });
+    }
     else
         res.status(404).json({ status: false });
 };
@@ -74,8 +92,24 @@ export const fetchMine = async (req, res) => {
         if (!ownerId) return res.status(401).json({ status: false });
         const apps = await ApplicationSchemaModule.find({ ownerId });
         const appIds = apps.map(a => a._id);
-        const licences = await LicenceSchemaModule.find({ appId: { $in: appIds } });
-        return res.status(200).json({ status: true, info: licences });
+        const licences = await LicenceSchemaModule.find({ appId: { $in: appIds } }).lean();
+        
+        const enrichedLicences = [];
+        for (const lic of licences) {
+            const latestSession = await RuntimeSessionModule.findOne({ licenceId: lic._id }).sort({ lastSeen: -1 });
+            if (latestSession) {
+                lic.lastSessionSeen = latestSession.lastSeen;
+                lic.lastSessionCreated = latestSession.createdAt;
+                const isHeartbeatActive = (new Date() - new Date(latestSession.lastSeen)) < 30000;
+                lic.isCurrentlyActive = isHeartbeatActive && lic.Status === "online";
+            } else {
+                lic.lastSessionSeen = null;
+                lic.lastSessionCreated = null;
+                lic.isCurrentlyActive = false;
+            }
+            enrichedLicences.push(lic);
+        }
+        return res.status(200).json({ status: true, info: enrichedLicences });
     } catch (error) {
         return res.status(500).json({ status: false, error: error.message });
     }
@@ -256,5 +290,33 @@ export const sendCustomMessage = async (req, res) => {
         res.status(200).json({ status: true, message: "Custom message updated successfully" });
     } catch (error) {
         res.status(500).json({ status: false, message: error.message });
+    }
+};
+
+export const getLicenceSessions = async (req, res) => {
+    try {
+        const licenceId = Number(req.query.licenceId);
+        if (!licenceId) {
+            return res.status(400).json({ status: false, error: "licenceId query param is required" });
+        }
+
+        const licence = await LicenceSchemaModule.findOne({ _id: licenceId });
+        if (!licence) {
+            return res.status(404).json({ status: false, error: "Licence not found" });
+        }
+
+        // Verify that this user owns the application of the licence, or is an admin
+        const app = await ApplicationSchemaModule.findOne({ _id: licence.appId });
+        const requesterId = Number(req.user?.id);
+        const requesterRole = req.user?.role || "";
+        
+        if (requesterRole !== "admin" && app && Number(app.ownerId) !== requesterId) {
+            return res.status(403).json({ status: false, error: "Not authorized to view sessions for this licence" });
+        }
+
+        const sessions = await RuntimeSessionModule.find({ licenceId }).sort({ createdAt: -1 }).limit(100);
+        return res.status(200).json({ status: true, info: sessions });
+    } catch (error) {
+        return res.status(500).json({ status: false, error: error.message });
     }
 };

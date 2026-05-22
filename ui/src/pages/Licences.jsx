@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchLicences, banUnbanLicence, updateLicenceDays, runExpiryCheck, resetHwid, setOffline, deleteLicence, sendLicenceMessage } from "../api.js";
+import { fetchLicences, banUnbanLicence, updateLicenceDays, runExpiryCheck, resetHwid, setOffline, deleteLicence, sendLicenceMessage, fetchLicenceSessions } from "../api.js";
 import Button from "../components/ui/Button.jsx";
 import Input from "../components/ui/Input.jsx";
 
@@ -20,6 +20,12 @@ export default function Licences() {
   const [msgAppId, setMsgAppId] = useState(0);
   const [msgValue, setMsgValue] = useState("");
 
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [logsKey, setLogsKey] = useState("");
+  const [logsId, setLogsId] = useState(0);
+  const [sessionsList, setSessionsList] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+
   const canSeeMsg = useMemo(() => {
     try {
       const role = (localStorage.getItem("role") || "").toLowerCase();
@@ -38,6 +44,22 @@ export default function Licences() {
   async function refresh() {
     const r = await fetchLicences();
     if (r.status) setItems(r.info || []);
+  }
+
+  async function openSessionsLog(lic) {
+    setLogsKey(lic.key);
+    setLogsId(lic._id);
+    setSessionsList([]);
+    setLoadingSessions(true);
+    setLogsOpen(true);
+    
+    const r = await fetchLicenceSessions(lic._id);
+    setLoadingSessions(false);
+    if (r.status) {
+      setSessionsList(r.info || []);
+    } else {
+      showStatus("Failed to load session logs", "error");
+    }
   }
 
   function showStatus(msg, type = "info") {
@@ -169,13 +191,53 @@ export default function Licences() {
             </div>
 
             <div>
-              {lic.Status === 'online' ? <span style={{ padding: "4px 8px", background: "rgba(16,185,129,0.1)", color: "var(--success, #10b981)", fontSize: "0.65rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", borderRadius: "100px" }}>Online</span>
-               : lic.Status === 'ban' ? <span style={{ padding: "4px 8px", background: "rgba(239,68,68,0.1)", color: "var(--error, #ef4444)", fontSize: "0.65rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", borderRadius: "100px" }}>Banned</span>
-               : lic.Status === 'killed' ? <span style={{ padding: "4px 8px", background: "rgba(255,0,0,0.15)", color: "#ff2222", fontSize: "0.65rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", borderRadius: "100px" }}>Killed</span>
-               : <span style={{ padding: "4px 8px", background: "rgba(107,114,128,0.1)", color: "var(--muted)", fontSize: "0.65rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", borderRadius: "100px" }}>{lic.Status || "Offline"}</span>}
+              <style>{`
+                @keyframes pulse-dot {
+                  0% { transform: scale(0.9); opacity: 0.6; }
+                  50% { transform: scale(1.2); opacity: 1; }
+                  100% { transform: scale(0.9); opacity: 0.6; }
+                }
+              `}</style>
+              {lic.isCurrentlyActive ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span style={{ padding: "4px 8px", background: "rgba(16,185,129,0.15)", color: "var(--success, #10b981)", fontSize: "0.65rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", borderRadius: "100px", width: "fit-content", display: "inline-flex", alignItems: "center" }}>
+                    <span style={{ width: "6px", height: "6px", background: "#10b981", borderRadius: "50%", marginRight: "6px", display: "inline-block", animation: "pulse-dot 1.5s infinite" }} />
+                    Currently Active (Online)
+                  </span>
+                  {lic.lastSessionCreated && (
+                    <span style={{ fontSize: "0.65rem", color: "var(--muted)", fontStyle: "italic", marginLeft: "4px" }}>
+                      Since: {new Date(lic.lastSessionCreated).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </span>
+                  )}
+                </div>
+              ) : lic.Status === 'ban' ? (
+                <span style={{ padding: "4px 8px", background: "rgba(239,68,68,0.1)", color: "var(--error, #ef4444)", fontSize: "0.65rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", borderRadius: "100px" }}>Banned</span>
+              ) : lic.Status === 'killed' ? (
+                <span style={{ padding: "4px 8px", background: "rgba(255,0,0,0.15)", color: "#ff2222", fontSize: "0.65rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", borderRadius: "100px" }}>Killed</span>
+              ) : lic.Status === 'online' ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span style={{ padding: "4px 8px", background: "rgba(245,158,11,0.1)", color: "#f59e0b", fontSize: "0.65rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", borderRadius: "100px", width: "fit-content" }}>
+                    Currently Inactive (Offline)
+                  </span>
+                  {lic.lastSessionSeen && (
+                    <span style={{ fontSize: "0.65rem", color: "var(--muted)", fontStyle: "italic", marginLeft: "4px" }}>
+                      Last Active: {new Date(lic.lastSessionSeen).toLocaleDateString([], {month: 'short', day: 'numeric'})} {new Date(lic.lastSessionSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span style={{ padding: "4px 8px", background: "rgba(107,114,128,0.1)", color: "var(--muted)", fontSize: "0.65rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", borderRadius: "100px" }}>Inactive (Offline)</span>
+              )}
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px", flexWrap: "wrap" }}>
+              <button 
+                onClick={() => openSessionsLog(lic)}
+                style={{ cursor: "pointer", background: "transparent", border: "1px solid var(--accent)", color: "var(--accent)", padding: "4px 10px", fontSize: "0.75rem", borderRadius: "6px", fontWeight: "600", transition: "all 0.2s" }}
+                onMouseOver={e => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.color = "#fff"; }} 
+                onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--accent)"; }}
+              >Logs</button>
+
               <button 
                 onClick={() => { setDaysKey(lic.key); setDaysAppId(lic.appId); setDaysValue(""); setDaysOpen(true); }}
                 style={{ cursor: "pointer", background: "transparent", border: "1px solid var(--border)", color: "var(--text)", padding: "4px 10px", fontSize: "0.75rem", borderRadius: "6px", fontWeight: "500", transition: "all 0.2s" }}
@@ -269,6 +331,75 @@ export default function Licences() {
                   action("Send Message", sendLicenceMessage, msgKey, msgAppId, msgValue);
                   setMsgOpen(false);
                 }}>Transmit Message</Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {logsOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }} onClick={() => setLogsOpen(false)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} transition={{ duration: 0.2 }} style={{ position: "relative", width: "100%", maxWidth: "800px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.6)", display: "flex", flexDirection: "column" }}>
+              <div style={{ padding: "24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+                <div>
+                  <h2 style={{ fontSize: "1.1rem", fontWeight: "700", color: "var(--text)", margin: 0 }}>Runtime Connection Logs</h2>
+                  <p style={{ fontSize: "0.8rem", color: "var(--muted)", margin: "4px 0 0 0", fontFamily: "monospace" }}>Key: {logsKey}</p>
+                </div>
+                <button onClick={() => setLogsOpen(false)} style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "1.2rem" }}>&times;</button>
+              </div>
+              
+              <div style={{ padding: "24px", maxHeight: "400px", overflowY: "auto" }}>
+                {loadingSessions ? (
+                  <div style={{ textAlign: "center", padding: "48px 0" }}>
+                    <div style={{ display: "inline-block", width: "32px", height: "32px", border: "3px solid rgba(255,255,255,0.1)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "pulse-dot 1s linear infinite" }} />
+                    <p style={{ color: "var(--muted)", fontSize: "0.9rem", marginTop: "16px" }}>Loading secure session telemetry...</p>
+                  </div>
+                ) : sessionsList.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--muted)" }}>
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5, marginBottom: "12px" }}><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    <p style={{ fontSize: "0.95rem", color: "var(--text)", fontWeight: "600", marginBottom: "4px" }}>No connection history found</p>
+                    <p style={{ fontSize: "0.8rem" }}>This license key has not been authorized or validated in any runtime client environment yet.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr 1.8fr 1.6fr 1.6fr 1fr", gap: "12px", padding: "8px 12px", background: "var(--surface2)", fontSize: "0.7rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)" }}>
+                      <div>IP Address</div>
+                      <div>App Ver</div>
+                      <div>Hashed HWID</div>
+                      <div>Connected (Online)</div>
+                      <div>Last Active</div>
+                      <div style={{ textAlign: "right" }}>Duration</div>
+                    </div>
+                    {sessionsList.map((session, index) => {
+                      const start = new Date(session.createdAt);
+                      const end = new Date(session.lastSeen);
+                      const diffMs = Math.max(0, end - start);
+                      const diffMins = Math.floor(diffMs / 60000);
+                      const diffSecs = Math.floor((diffMs % 60000) / 1000);
+                      const durationStr = diffMins === 0 ? `${diffSecs}s` : `${diffMins}m ${diffSecs}s`;
+                      
+                      return (
+                        <div key={session._id || index} style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr 1.8fr 1.6fr 1.6fr 1fr", gap: "12px", padding: "12px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", alignItems: "center", fontSize: "0.8rem" }}>
+                          <div style={{ fontFamily: "monospace", color: "var(--text)", fontWeight: "600" }}>{session.ip || "127.0.0.1"}</div>
+                          <div style={{ color: "var(--muted)" }}>v{session.appVersion || "1.0"}</div>
+                          <div style={{ fontFamily: "monospace", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={session.hwid}>{session.hwid ? `${session.hwid.slice(0, 14)}...` : "N/A"}</div>
+                          <div style={{ color: "var(--text)" }}>
+                            {start.toLocaleDateString([], {month: 'short', day: 'numeric'})} {start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </div>
+                          <div style={{ color: "var(--text)" }}>
+                            {end.toLocaleDateString([], {month: 'short', day: 'numeric'})} {end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </div>
+                          <div style={{ fontWeight: "700", color: "var(--accent)", textAlign: "right" }}>{durationStr}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "flex-end" }}>
+                <Button variant="ghost" onClick={() => setLogsOpen(false)}>Close Logs</Button>
               </div>
             </motion.div>
           </div>

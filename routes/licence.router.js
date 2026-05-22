@@ -11,5 +11,6 @@ router.post("/expiry-check", requireAuth, LincenceRouter.expiryCheck);
 router.post("/ban-unban", requireAuth, LincenceRouter.banUnbanLicence);
 router.post("/reset-hwid", requireAuth, LincenceRouter.resetHwid);
 router.post("/custom-message", requireAuth, LincenceRouter.sendCustomMessage);
+router.get("/sessions", requireAuth, LincenceRouter.getLicenceSessions);
 
 export default router;

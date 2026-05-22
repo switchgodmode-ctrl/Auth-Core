@@ -258,3 +258,7 @@ export async function fetchBannedSystems() {
 export async function unbanSystem(hwid) {
   return request("/runtime/unban-system", { method: "POST", body: JSON.stringify({ hwid }) }, true);
 }
+
+export async function fetchLicenceSessions(licenceId) {
+  return request(`/licence/sessions?licenceId=${Number(licenceId)}`, {}, true);
+}

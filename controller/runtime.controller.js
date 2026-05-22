@@ -263,6 +263,13 @@ export const heartbeat = async (req, res) => {
             return res.status(200).json({ status: true, active: false, currentStatus: licence.Status || "killed" });
         }
 
+        // Keep runtime session alive by updating lastSeen
+        const session = await RuntimeSessionModule.findOne({ licenceId: licence._id }).sort({ lastSeen: -1 });
+        if (session) {
+            session.lastSeen = new Date();
+            await session.save();
+        }
+
         return res.status(200).json({ 
             status: true, 
             active: true, 
