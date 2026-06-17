@@ -308,9 +308,32 @@ export const validate = async (req, res) => {
         dispatchWebhooks(appId, "SESSION_CONNECTED", { licenceKey, ip, hwid: hashedHwid, appVersion });
     }
 
+    // ── SESSION TOKEN GENERATION ─────────────────────────────────────────────
+    // Generate a cryptographically random session token when login is allowed.
+    // Store only the SHA-256 hash in the DB — raw token goes to client.
+    // A cracker who patches the login check locally never calls verify() with
+    // a real key, so they never receive a valid token → heartbeat kills them.
+    let sessionToken = null;
+    if (allowed) {
+        sessionToken = crypto.randomBytes(32).toString("hex");
+        const tokenHash = crypto.createHash("sha256").update(sessionToken).digest("hex");
+
+        // Attach token hash to the RuntimeSession record we just created above
+        const latestSession = await RuntimeSessionModule.findOne(
+            { licenceId: licence._id }
+        ).sort({ lastSeen: -1 });
+
+        if (latestSession) {
+            latestSession.sessionToken = tokenHash;
+            await latestSession.save();
+        }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const responsePayload = {
       status: true,
       allowed,
+      sessionToken: sessionToken || null,
       featuresAllowed: licence.features || {},
       trustScore: licence.trustScore,
       flags,
@@ -359,7 +382,7 @@ export const validate = async (req, res) => {
 
 export const heartbeat = async (req, res) => {
     try {
-        const { licenceKey, appId } = req.body;
+        const { licenceKey, appId, sessionToken } = req.body;
         if (!licenceKey || !appId) return res.status(400).json({ status: false, message: "Missing required fields" });
 
         const licence = await LicenceSchemaModule.findOne({ key: licenceKey, appId: Number(appId) });
@@ -370,8 +393,57 @@ export const heartbeat = async (req, res) => {
             return res.status(200).json({ status: true, active: false, currentStatus: licence.Status || "killed" });
         }
 
-        // Keep runtime session alive by updating lastSeen
+        // ── SESSION TOKEN VALIDATION ──────────────────────────────────────────
         const session = await RuntimeSessionModule.findOne({ licenceId: licence._id }).sort({ lastSeen: -1 });
+
+        if (session && session.sessionToken) {
+            // This session was created with a token — must be validated
+            if (!sessionToken) {
+                // Client sent no token → cracker bypass detected → kill
+                console.log(`[SECURITY] Heartbeat with no token for ${licenceKey} — possible bypass attempt.`);
+                licence.trustScore = Math.max(0, licence.trustScore - 20);
+                await licence.save();
+                return res.status(200).json({
+                    status: true,
+                    active: false,
+                    currentStatus: "killed"
+                });
+            }
+
+            const incomingHash = crypto.createHash("sha256").update(sessionToken).digest("hex");
+            if (incomingHash !== session.sessionToken) {
+                // Token hash mismatch → forged or replayed token → kill
+                console.log(`[SECURITY] Token mismatch for ${licenceKey} — session killed.`);
+                licence.trustScore = Math.max(0, licence.trustScore - 20);
+                await licence.save();
+                return res.status(200).json({
+                    status: true,
+                    active: false,
+                    currentStatus: "killed"
+                });
+            }
+
+            // ✅ Token is valid — rotate it (rolling token, harder to replay)
+            const newRawToken = crypto.randomBytes(32).toString("hex");
+            session.sessionToken = crypto.createHash("sha256").update(newRawToken).digest("hex");
+            session.lastSeen = new Date();
+            await session.save();
+
+            // Reward good behaviour
+            licence.trustScore = Math.min(100, licence.trustScore + 1);
+            await licence.save();
+
+            return res.status(200).json({
+                status: true,
+                active: true,
+                currentStatus: licence.Status,
+                sessionToken: newRawToken,        // rotated token for next beat
+                customMessage: licence.customMessage || ""
+            });
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Legacy session (no token stored) — keep alive normally
         if (session) {
             session.lastSeen = new Date();
             await session.save();

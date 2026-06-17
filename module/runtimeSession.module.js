@@ -45,6 +45,10 @@ const RuntimeSessionSchema = mongoose.Schema({
     type: Number,
     default: 0
   },
+  sessionToken: {
+    type: String,
+    default: null
+  },
   lastSeen: {
     type: Date,
     default: Date.now
