@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Disable buffering globally immediately upon module load (applies to all schemas compiled after this)
+mongoose.set('bufferCommands', false);
+
 const MONGO_URI = process.env.MONGO_URI;
 
 if (!MONGO_URI) {

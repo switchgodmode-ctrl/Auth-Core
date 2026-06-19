@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from "dotenv";
 dotenv.config();
+import connectDB from "./module/connection.js";
 import fs from 'fs';
 import path from 'path';
 // Environment variables are loaded via dotenv and Vercel's native env support
@@ -16,7 +17,6 @@ import WebhookRouter from "./routes/webhook.router.js";
 
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
-import connectDB from "./module/connection.js";
 
 const app = express();
 app.set('trust proxy', 1);
