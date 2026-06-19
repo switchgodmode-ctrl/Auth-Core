@@ -34,8 +34,10 @@ int main() {
         std::cout << "\n[+] Authentication Successful!" << std::endl;
         std::cout << "[+] Welcome: " << response.message << std::endl;
 
-        // Start Heartbeat in background
-        AuthCore::Sdk::StartHeartbeat(baseUrl, appId, licenseKey, 15000);
+        // Pass session token to heartbeat as a shared_ptr so it can be rotated each beat.
+        // A cracker who patches login never calls Verify() -> token is empty -> server kills.
+        auto sessionToken = std::make_shared<std::string>(response.sessionToken);
+        AuthCore::Sdk::StartHeartbeat(baseUrl, appId, licenseKey, sessionToken, 15000);
 
         std::cout << "\n[*] Application is now running..." << std::endl;
         std::cout << "[*] Any admin messages will pop up in a MessageBox." << std::endl;

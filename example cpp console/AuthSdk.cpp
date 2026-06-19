@@ -145,6 +145,7 @@ namespace AuthCore {
         ar.success = (extract_json_value(resp, "status") == "true" || extract_json_value(resp, "allowed") == "true");
         ar.message = extract_json_value(resp, "message");
         ar.customMessage = extract_json_value(resp, "customMessage");
+        ar.sessionToken = extract_json_value(resp, "sessionToken"); // Capture token
 
         if (ar.success && !ar.customMessage.empty()) {
             MessageBoxA(NULL, ar.customMessage.c_str(), "Admin Broadcast", MB_OK | MB_ICONINFORMATION);
@@ -153,18 +154,26 @@ namespace AuthCore {
         return ar;
     }
 
-    void Sdk::StartHeartbeat(const std::string& baseUrl, int appId, const std::string& licenceKey, int intervalMs) {
+    void Sdk::StartHeartbeat(const std::string& baseUrl, int appId, const std::string& licenceKey, std::shared_ptr<std::string> sessionToken, int intervalMs) {
         std::thread([=]() {
             while (true) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
-                std::string payload = "{\"appId\":" + std::to_string(appId) + 
-                                     ",\"licenceKey\":\"" + licenceKey + 
-                                     "\",\"hwid\":\"" + GetHwid() + "\"}";
+                // Send current session token — empty for crackers who bypassed login
+                std::string current_token = *sessionToken;
+                std::string payload = "{\"appId\":" + std::to_string(appId) +
+                                     ",\"licenceKey\":\"" + licenceKey +
+                                     "\",\"hwid\":\"" + GetHwid() +
+                                     "\",\"sessionToken\":\"" + current_token + "\"}";
                 std::string resp;
                 if (http_post(baseUrl + "/runtime/heartbeat", payload, resp)) {
-                    std::string status = extract_json_value(resp, "status");
+                    // Rotate token each beat
+                    std::string new_token = extract_json_value(resp, "sessionToken");
+                    if (!new_token.empty()) {
+                        *sessionToken = new_token;
+                    }
+                    std::string active = extract_json_value(resp, "active");
                     std::string currentStatus = extract_json_value(resp, "currentStatus");
-                    if (status == "true" && currentStatus == "killed") {
+                    if (active == "false" || currentStatus == "killed") {
                         MessageBoxA(NULL, "Session terminated by administrator.", "Security Alert", MB_OK | MB_ICONSTOP);
                         std::exit(0);
                     }

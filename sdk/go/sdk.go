@@ -17,11 +17,12 @@ import (
 )
 
 type AuthCoreSDK struct {
-	BaseURL    string
-	AppID      int
-	AppSecret  string
-	AppVersion string
-	LicenseKey string
+	BaseURL      string
+	AppID        int
+	AppSecret    string
+	AppVersion   string
+	LicenseKey   string
+	SessionToken string // Issued by server on valid login — required for heartbeat
 }
 
 func NewAuthCoreSDK(baseUrl string, appId int, appSecret string, appVersion string) *AuthCoreSDK {
@@ -121,6 +122,13 @@ func (sdk *AuthCoreSDK) Verify(licenseKey string) (*AuthResponse, error) {
 	json.NewDecoder(resp.Body).Decode(&res)
 
 	success := res["status"] == "true" || res["allowed"] == true
+
+	// Capture session token — only a real server response includes this
+	if success {
+		if token, ok := res["sessionToken"].(string); ok && token != "" {
+			sdk.SessionToken = token
+		}
+	}
 	
 	if success {
 		if msg, ok := res["customMessage"].(string); ok && msg != "" {
@@ -140,9 +148,10 @@ func (sdk *AuthCoreSDK) StartHeartbeat(intervalMs int) {
 	go func() {
 		for range ticker.C {
 			payload := map[string]interface{}{
-				"appId":      sdk.AppID,
-				"licenceKey": sdk.LicenseKey,
-				"hwid":       sdk.GetHWID(),
+				"appId":        sdk.AppID,
+				"licenceKey":   sdk.LicenseKey,
+				"hwid":         sdk.GetHWID(),
+				"sessionToken": sdk.SessionToken, // empty string for crackers who bypassed login
 			}
 			body, _ := json.Marshal(payload)
 			resp, err := http.Post(sdk.BaseURL+"/runtime/heartbeat", "application/json", bytes.NewBuffer(body))
@@ -154,11 +163,16 @@ func (sdk *AuthCoreSDK) StartHeartbeat(intervalMs int) {
 			json.NewDecoder(resp.Body).Decode(&res)
 			resp.Body.Close()
 
+			// Rotate token each beat
+			if newToken, ok := res["sessionToken"].(string); ok && newToken != "" {
+				sdk.SessionToken = newToken
+			}
+
 			if msg, ok := res["customMessage"].(string); ok && msg != "" {
 				sdk.ShowMessage(msg, "Admin Broadcast")
 			}
 
-			if res["status"] == "true" && res["currentStatus"] == "killed" {
+			if res["active"] == false || res["currentStatus"] == "killed" {
 				sdk.ShowMessage("Session terminated by administrator.", "Security Alert")
 				time.Sleep(2 * time.Second)
 				os.Exit(1)

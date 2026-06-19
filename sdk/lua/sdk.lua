@@ -8,6 +8,7 @@ function AuthCoreSDK.new(baseUrl, appId, appSecret, appVersion)
     self.appSecret = appSecret
     self.appVersion = appVersion
     self.licenseKey = nil
+    self.sessionToken = nil  -- Issued by server on valid login — required for heartbeat
     return self
 end
 
@@ -70,7 +71,13 @@ function AuthCoreSDK:verify(licenseKey)
     local status = getJsonValue(resJson, "status")
     local allowed = getJsonValue(resJson, "allowed")
     local success = (status == "true" or allowed == "true")
-    
+
+    -- Capture session token — only a real server response includes this
+    if success then
+        local token = getJsonValue(resJson, "sessionToken")
+        if token and token ~= "" then self.sessionToken = token end
+    end
+
     local customMsg = getJsonValue(resJson, "customMessage")
     if success and customMsg and customMsg ~= "" then
         self:showMessage(customMsg)
@@ -93,17 +100,24 @@ function AuthCoreSDK:startHeartbeat(intervalMs)
             lastHeartbeat = os.time()
             local payload = {
                 appId = self.appId,
-                licenceKey = self.licenseKey
+                licenceKey = self.licenseKey,
+                sessionToken = self.sessionToken  -- nil for crackers who bypassed login
             }
             local resJson = self:post("/runtime/heartbeat", payload)
-            
+
             if resJson then
+                -- Rotate token each beat
+                local newToken = getJsonValue(resJson, "sessionToken")
+                if newToken and newToken ~= "" then self.sessionToken = newToken end
+
                 local customMsg = getJsonValue(resJson, "customMessage")
                 if customMsg and customMsg ~= "" then
                     self:showMessage(customMsg)
                 end
 
-                if getJsonValue(resJson, "status") == "true" and getJsonValue(resJson, "currentStatus") == "killed" then
+                local active = getJsonValue(resJson, "active")
+                local currentStatus = getJsonValue(resJson, "currentStatus")
+                if active == "false" or currentStatus == "killed" then
                     self:showMessage("Session terminated by administrator.", "Security Alert")
                     os.exit(1)
                 end

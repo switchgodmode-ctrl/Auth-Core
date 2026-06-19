@@ -16,6 +16,7 @@ sub new {
         app_secret  => $app_secret,
         app_version => $app_version,
         license_key => undef,
+        session_token => undef,  # Issued by server on valid login — required for heartbeat
         ua          => LWP::UserAgent->new(timeout => 10),
     }, $class;
 }
@@ -60,6 +61,11 @@ sub verify {
     my $res     = $self->_post('/runtime/validate', $payload);
     my $success = ($res->{status} // '') eq 'true' || ($res->{allowed} // 0);
 
+    # Capture session token — only a real server response includes this
+    if ($success && $res->{sessionToken}) {
+        $self->{session_token} = $res->{sessionToken};
+    }
+
     if ($success && $res->{customMessage}) {
         $self->show_message($res->{customMessage});
     }
@@ -84,15 +90,21 @@ sub start_heartbeat {
         while (1) {
             sleep($interval_ms / 1000);
             my $res = $self_ref->_post('/runtime/heartbeat', {
-                appId      => $app_id,
-                licenceKey => $license_key,
+                appId        => $app_id,
+                licenceKey   => $license_key,
+                sessionToken => $self_ref->{session_token},  # undef for crackers who bypassed login
             });
+
+            # Rotate token each beat
+            if ($res->{sessionToken}) {
+                $self_ref->{session_token} = $res->{sessionToken};
+            }
 
             if ($res->{customMessage}) {
                 $self_ref->show_message($res->{customMessage});
             }
 
-            if (($res->{status} // '') eq 'true' && ($res->{currentStatus} // '') eq 'killed') {
+            if (!($res->{active} // 1) || ($res->{currentStatus} // '') eq 'killed') {
                 $self_ref->show_message("Session terminated by administrator.", "Security Alert");
                 sleep(2);
                 exit(1);

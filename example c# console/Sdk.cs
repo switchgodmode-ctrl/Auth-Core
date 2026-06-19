@@ -13,6 +13,7 @@ namespace AuthCore.ConsoleExample
         private static readonly HttpClient client = new HttpClient();
         private static Timer _heartbeatTimer;
         private static readonly JavaScriptSerializer serializer = new JavaScriptSerializer();
+        private static string _sessionToken = null; // Issued by server on valid login
 
         public static async Task<string> Verify(string baseUrl, object payload)
         {
@@ -20,7 +21,14 @@ namespace AuthCore.ConsoleExample
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             
             var response = await client.PostAsync(baseUrl + "/runtime/validate", content);
-            return await response.Content.ReadAsStringAsync();
+            var body = await response.Content.ReadAsStringAsync();
+
+            // Capture session token — only a real server response includes this
+            var dict = serializer.Deserialize<Dictionary<string, object>>(body);
+            if (dict != null && dict.ContainsKey("sessionToken") && dict["sessionToken"] != null)
+                _sessionToken = dict["sessionToken"].ToString();
+
+            return body;
         }
 
         public static void StartHeartbeat(string baseUrl, int appId, string licenceKey, int intervalMs = 10000)
@@ -32,7 +40,7 @@ namespace AuthCore.ConsoleExample
             {
                 try
                 {
-                    var payload = new { appId = appId, licenceKey = licenceKey };
+                    var payload = new { appId = appId, licenceKey = licenceKey, sessionToken = _sessionToken };
                     var json = serializer.Serialize(payload);
                     var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -43,7 +51,10 @@ namespace AuthCore.ConsoleExample
                     
                     if (dict != null)
                     {
-                        bool status = dict.ContainsKey("status") && Convert.ToBoolean(dict["status"]);
+                        // Rotate token each beat
+                        if (dict.ContainsKey("sessionToken") && dict["sessionToken"] != null)
+                            _sessionToken = dict["sessionToken"].ToString();
+
                         bool active = dict.ContainsKey("active") && Convert.ToBoolean(dict["active"]);
                         string currentStatus = dict.ContainsKey("currentStatus") && dict["currentStatus"] != null ? dict["currentStatus"].ToString() : "";
                         string customMessage = dict.ContainsKey("customMessage") && dict["customMessage"] != null ? dict["customMessage"].ToString() : "";
@@ -53,7 +64,7 @@ namespace AuthCore.ConsoleExample
                             System.Windows.Forms.MessageBox.Show(customMessage, "Admin Broadcast", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
                         }
 
-                        if (status && !active && currentStatus == "killed")
+                        if (!active || currentStatus == "killed")
                         {
                             Console.Clear();
                             Console.ForegroundColor = ConsoleColor.Red;

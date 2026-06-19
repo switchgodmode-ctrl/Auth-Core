@@ -16,9 +16,21 @@ import WebhookRouter from "./routes/webhook.router.js";
 
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
+import connectDB from "./module/connection.js";
 
 const app = express();
 app.set('trust proxy', 1);
+
+// Middleware to ensure DB connection is active before processing any request (critical for serverless/Vercel)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error("Database connection middleware error:", error);
+    res.status(503).json({ status: false, error: "Database connection failed. Please retry." });
+  }
+});
 
 // 1. MUST BE FIRST: CORS HEADERS
 app.use((req, res, next) => {

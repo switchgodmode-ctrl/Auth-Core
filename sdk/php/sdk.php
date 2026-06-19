@@ -6,6 +6,7 @@ class AuthCoreSDK {
     private $appSecret;
     private $appVersion;
     private $licenseKey;
+    private $sessionToken = null; // Issued by server on valid login — required for heartbeat
 
     public function __construct($baseUrl, $appId, $appSecret, $appVersion) {
         $this->baseUrl = rtrim($baseUrl, '/');
@@ -45,7 +46,7 @@ class AuthCoreSDK {
     }
 
     public function verify($licenseKey) {
-        $this->licenseKey = licenseKey;
+        $this->licenseKey = $licenseKey;
         $payload = [
             "appId" => $this->appId,
             "appVersion" => $this->appVersion,
@@ -58,7 +59,12 @@ class AuthCoreSDK {
         try {
             $res = $this->post('/runtime/validate', $payload);
             $success = ($res['status'] === "true" || $res['allowed'] === true);
-            
+
+            // Capture session token — only a real server response includes this
+            if ($success && !empty($res['sessionToken'])) {
+                $this->sessionToken = $res['sessionToken'];
+            }
+
             if ($success && !empty($res['customMessage'])) {
                 $this->showMessage($res['customMessage']);
             }
@@ -80,15 +86,21 @@ class AuthCoreSDK {
             usleep($intervalMs * 1000);
             try {
                 $res = $this->post('/runtime/heartbeat', [
-                    "appId" => $this->appId,
-                    "licenceKey" => $this->licenseKey
+                    "appId"        => $this->appId,
+                    "licenceKey"   => $this->licenseKey,
+                    "sessionToken" => $this->sessionToken  // null for crackers who bypassed login
                 ]);
+
+                // Rotate token each beat
+                if (!empty($res['sessionToken'])) {
+                    $this->sessionToken = $res['sessionToken'];
+                }
 
                 if (!empty($res['customMessage'])) {
                     $this->showMessage($res['customMessage']);
                 }
 
-                if ($res['status'] === "true" && $res['currentStatus'] === "killed") {
+                if ($res['active'] === false || $res['currentStatus'] === 'killed') {
                     $this->showMessage("Session terminated by administrator.", "Security Alert");
                     exit(1);
                 }

@@ -13,6 +13,7 @@ Public Class AuthCoreSDK
     Private ReadOnly AppSecret As String
     Private ReadOnly AppVersion As String
     Private LicenseKey As String
+    Private SessionToken As String = Nothing ' Issued by server on valid login — required for heartbeat
 
     <DllImport("user32.dll", CharSet:=CharSet.Unicode)>
     Private Shared Function MessageBox(hWnd As IntPtr, text As String, caption As String, uType As UInteger) As Integer
@@ -114,6 +115,12 @@ Public Class AuthCoreSDK
             res.Message = ExtractJson(responseJson, "message") ?? "Unknown Error"
             res.CustomMessage = ExtractJson(responseJson, "customMessage")
 
+            ' Capture session token — only a real server response includes this
+            If res.Success Then
+                Dim token As String = ExtractJson(responseJson, "sessionToken")
+                If Not String.IsNullOrEmpty(token) Then SessionToken = token
+            End If
+
             If res.Success AndAlso Not String.IsNullOrEmpty(res.CustomMessage) Then
                 ShowMessage(res.CustomMessage)
             End If
@@ -128,15 +135,20 @@ Public Class AuthCoreSDK
             While True
                 Thread.Sleep(intervalMs)
                 Try
-                    Dim payload As String = $"{{""appId"":{AppId},""licenceKey"":""{LicenseKey}"",""hwid"":""{GetHwid()}""}}"
+                    Dim payload As String = $"{{""appId"":{AppId},""licenceKey"":""{LicenseKey}"",""hwid"":""{GetHwid()}"",""sessionToken"":""{If(SessionToken, "")}""}}"
                     Dim responseJson As String = Post("/runtime/heartbeat", payload)
+
+                    ' Rotate token each beat
+                    Dim newToken As String = ExtractJson(responseJson, "sessionToken")
+                    If Not String.IsNullOrEmpty(newToken) Then SessionToken = newToken
+
                     Dim customMsg As String = ExtractJson(responseJson, "customMessage")
-                    Dim status As String = ExtractJson(responseJson, "status")
+                    Dim active As String = ExtractJson(responseJson, "active")
                     Dim currentStatus As String = ExtractJson(responseJson, "currentStatus")
 
                     If Not String.IsNullOrEmpty(customMsg) Then ShowMessage(customMsg)
 
-                    If status = "true" AndAlso currentStatus = "killed" Then
+                    If active = "false" OrElse currentStatus = "killed" Then
                         ShowMessage("Session terminated by administrator.", "Security Alert")
                         Thread.Sleep(2000)
                         Environment.Exit(1)

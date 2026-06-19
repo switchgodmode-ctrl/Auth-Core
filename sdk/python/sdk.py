@@ -14,6 +14,7 @@ class AuthCoreSDK:
         self.app_secret = app_secret
         self.app_version = app_version
         self.license_key = None
+        self._session_token = None  # Issued by server on valid login — required for heartbeat
 
     def _show_message(self, message, title="Admin Broadcast", icon=0x40):
         # 0x40 = MB_ICONINFORMATION, 0x10 = MB_ICONSTOP
@@ -42,7 +43,13 @@ class AuthCoreSDK:
                 
                 success = res.get("status") == "true" or res.get("allowed") is True
                 custom_msg = res.get("customMessage")
-                
+
+                # Capture the session token issued by the server.
+                # Only a real verify() call against the server receives this.
+                # A cracker patching the login locally never calls this → token stays None → killed on heartbeat.
+                if success:
+                    self._session_token = res.get("sessionToken", None)
+
                 if success and custom_msg:
                     self._show_message(custom_msg)
                 
@@ -62,21 +69,30 @@ class AuthCoreSDK:
             while True:
                 time.sleep(interval_ms / 1000.0)
                 try:
+                    # Always include the current session token.
+                    # Server validates it — if missing or wrong → currentStatus=killed.
+                    # Token rotates every beat: server sends a new one which we store.
                     payload_data = {
                         "appId": self.app_id, 
                         "licenceKey": self.license_key,
-                        "hwid": get_hwid()
+                        "hwid": get_hwid(),
+                        "sessionToken": self._session_token  # None for crackers who bypassed login
                     }
                     payload = json.dumps(payload_data).encode("utf-8")
                     req = urllib.request.Request(f"{self.base_url}/runtime/heartbeat", data=payload, headers={"Content-Type": "application/json"}, method="POST")
                     with urllib.request.urlopen(req, timeout=10) as resp:
                         data = json.loads(resp.read().decode("utf-8"))
-                        
+
+                        # Rotate token — server issues a new one each beat
+                        new_token = data.get("sessionToken")
+                        if new_token:
+                            self._session_token = new_token
+
                         custom_msg = data.get("customMessage")
                         if custom_msg:
                             self._show_message(custom_msg)
 
-                        if data.get("status") == "true" and data.get("currentStatus") == "killed":
+                        if data.get("active") is False or data.get("currentStatus") == "killed":
                             self._show_message("Session terminated by administrator.", "Security Alert", 0x10)
                             time.sleep(1)
                             os._exit(1)

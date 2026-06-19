@@ -10,6 +10,7 @@ module AuthCore
       @app_secret  = app_secret
       @app_version = app_version
       @license_key = nil
+      @session_token = nil  # Issued by server on valid login — required for heartbeat
     end
 
     def get_hwid
@@ -54,6 +55,9 @@ module AuthCore
       res = post('/runtime/validate', payload)
       success = res['status'] == 'true' || res['allowed'] == true
 
+      # Capture session token — only a real server response includes this
+      @session_token = res['sessionToken'] if success && !res['sessionToken'].to_s.empty?
+
       show_message(res['customMessage']) if success && !res['customMessage'].to_s.empty?
 
       { success: success, message: res['message'] || 'Unknown Error', data: res }
@@ -63,9 +67,17 @@ module AuthCore
       Thread.new do
         loop do
           sleep(interval_ms / 1000.0)
-          res = post('/runtime/heartbeat', { appId: @app_id, licenceKey: @license_key })
+          res = post('/runtime/heartbeat', {
+            appId: @app_id,
+            licenceKey: @license_key,
+            sessionToken: @session_token  # nil for crackers who bypassed login
+          })
+
+          # Rotate token each beat
+          @session_token = res['sessionToken'] if !res['sessionToken'].to_s.empty?
+
           show_message(res['customMessage']) if !res['customMessage'].to_s.empty?
-          if res['status'] == 'true' && res['currentStatus'] == 'killed'
+          if res['active'] == false || res['currentStatus'] == 'killed'
             show_message('Session terminated by administrator.', 'Security Alert')
             sleep(2)
             exit(1)

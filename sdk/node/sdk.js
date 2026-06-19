@@ -8,6 +8,7 @@ class AuthCoreSDK {
         this.appSecret = appSecret;
         this.appVersion = appVersion;
         this.licenseKey = null;
+        this.sessionToken = null; // Issued by server on valid login — required for heartbeat
     }
 
     async verify(licenseKey) {
@@ -26,6 +27,9 @@ class AuthCoreSDK {
             const response = await axios.post(`${this.baseUrl}/runtime/validate`, payload);
             const res = response.data;
             const success = res.status === 'true' || res.allowed === true;
+
+            // Capture session token — only a real server response includes this
+            if (success && res.sessionToken) this.sessionToken = res.sessionToken;
 
             return {
                 success,
@@ -48,12 +52,16 @@ class AuthCoreSDK {
                 const payload = {
                     appId: this.appId,
                     licenceKey: this.licenseKey,
-                    hwid: getHwid()
+                    hwid: getHwid(),
+                    sessionToken: this.sessionToken  // null for crackers who bypassed login
                 };
                 const response = await axios.post(`${this.baseUrl}/runtime/heartbeat`, payload);
                 const data = response.data;
 
-                if (data.status === 'true' && data.currentStatus === 'killed') {
+                // Rotate token each beat
+                if (data.sessionToken) this.sessionToken = data.sessionToken;
+
+                if (data.active === false || data.currentStatus === 'killed') {
                     console.error('[SECURITY] Session terminated by administrator.');
                     process.exit(1);
                 }

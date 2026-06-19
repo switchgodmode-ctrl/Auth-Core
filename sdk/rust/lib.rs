@@ -26,6 +26,7 @@ pub struct AuthCoreSDK {
     app_secret: String,
     app_version: String,
     license_key: Option<String>,
+    session_token: Option<String>, // Issued by server on valid login — required for heartbeat
 }
 
 impl AuthCoreSDK {
@@ -36,6 +37,7 @@ impl AuthCoreSDK {
             app_secret: app_secret.to_string(),
             app_version: app_version.to_string(),
             license_key: None,
+            session_token: None,
         }
     }
 
@@ -113,6 +115,15 @@ impl AuthCoreSDK {
             .into_json()?;
 
         let success = resp["status"] == "true" || resp["allowed"] == true;
+
+        // Capture session token — only a real server response includes this
+        if success {
+            if let Some(token) = resp["sessionToken"].as_str() {
+                if !token.is_empty() {
+                    self.session_token = Some(token.to_string());
+                }
+            }
+        }
         
         if success {
             if let Some(msg) = resp["customMessage"].as_str() {
@@ -129,21 +140,32 @@ impl AuthCoreSDK {
         let base_url = self.base_url.clone();
         let app_id = self.app_id;
         let license_key = self.license_key.clone().unwrap_or_default();
+        let session_token = std::sync::Arc::new(std::sync::Mutex::new(
+            self.session_token.clone().unwrap_or_default()
+        ));
 
         thread::spawn(move || {
             loop {
                 thread::sleep(Duration::from_millis(interval_ms));
+                let current_token = session_token.lock().unwrap().clone();
                 let payload = serde_json::json!({
                     "appId": app_id,
                     "licenceKey": license_key,
-                    "hwid": Self::get_hwid()
+                    "hwid": Self::get_hwid(),
+                    "sessionToken": current_token  // empty for crackers who bypassed login
                 });
 
                 if let Ok(resp) = ureq::post(&format!("{}/runtime/heartbeat", base_url))
                     .send_json(payload)
                 {
                     if let Ok(res) = resp.into_json::<serde_json::Value>() {
-                        if res["status"] == "true" && res["currentStatus"] == "killed" {
+                        // Rotate token each beat
+                        if let Some(new_token) = res["sessionToken"].as_str() {
+                            if !new_token.is_empty() {
+                                *session_token.lock().unwrap() = new_token.to_string();
+                            }
+                        }
+                        if res["active"] == false || res["currentStatus"] == "killed" {
                             process::exit(1);
                         }
                     }

@@ -15,6 +15,7 @@ public class Sdk {
     private final String appSecret;
     private final String appVersion;
     private String licenseKey;
+    private String sessionToken = null; // Issued by server on valid login — required for heartbeat
 
     public Sdk(String baseUrl, int appId, String appSecret, String appVersion) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
@@ -106,6 +107,12 @@ public class Sdk {
             res.success = "true".equals(extractJson(response, "status")) || "true".equals(extractJson(response, "allowed"));
             res.message = extractJson(response, "message");
 
+            // Capture session token — only a real server response includes this
+            if (res.success) {
+                String token = extractJson(response, "sessionToken");
+                if (token != null && !token.isEmpty()) this.sessionToken = token;
+            }
+
             String customMsg = extractJson(response, "customMessage");
             if (res.success && customMsg != null && !customMsg.isEmpty()) {
                 showMessage(customMsg, "Admin Broadcast", JOptionPane.INFORMATION_MESSAGE);
@@ -121,15 +128,22 @@ public class Sdk {
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         executor.scheduleAtFixedRate(() -> {
             try {
-                String payload = String.format("{\"appId\":%d,\"licenceKey\":\"%s\"}", appId, licenseKey);
+                String payload = String.format("{\"appId\":%d,\"licenceKey\":\"%s\",\"sessionToken\":\"%s\"}",
+                    appId, licenseKey, sessionToken != null ? sessionToken : "");
                 String response = post("/runtime/heartbeat", payload);
-                
+
+                // Rotate token each beat
+                String newToken = extractJson(response, "sessionToken");
+                if (newToken != null && !newToken.isEmpty()) sessionToken = newToken;
+
                 String customMsg = extractJson(response, "customMessage");
                 if (customMsg != null && !customMsg.isEmpty()) {
                     showMessage(customMsg, "Admin Broadcast", JOptionPane.INFORMATION_MESSAGE);
                 }
 
-                if ("true".equals(extractJson(response, "status")) && "killed".equals(extractJson(response, "currentStatus"))) {
+                String active = extractJson(response, "active");
+                String currentStatus = extractJson(response, "currentStatus");
+                if ("false".equals(active) || "killed".equals(currentStatus)) {
                     showMessage("Session terminated by administrator.", "Security Alert", JOptionPane.ERROR_MESSAGE);
                     Thread.sleep(2000);
                     System.exit(0);
