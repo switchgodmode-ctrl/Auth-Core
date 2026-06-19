@@ -86,6 +86,14 @@ export const validate = async (req, res) => {
       return res.status(401).json({ status: false, message: "Invalid application or secret" });
     }
 
+    // Strict version validation check
+    if (app.version && app.version !== appVersion) {
+      return res.status(403).json({
+          status: false,
+          message: `Update Required: A new version (${app.version}) is available. You are running version ${appVersion || "unknown"}. Please update to continue.`
+      });
+    }
+
     const licence = await LicenceSchemaModule.findOne({ key: licenceKey, appId: Number(appId) });
     
     if (!licence) {
@@ -393,8 +401,24 @@ export const heartbeat = async (req, res) => {
             return res.status(200).json({ status: true, active: false, currentStatus: licence.Status || "killed" });
         }
 
+        const app = await ApplicationSchemaModule.findOne({ _id: Number(appId) });
+        if (!app) {
+            return res.status(404).json({ status: false, message: "Application not found" });
+        }
+
         // ── SESSION TOKEN VALIDATION ──────────────────────────────────────────
         const session = await RuntimeSessionModule.findOne({ licenceId: licence._id }).sort({ lastSeen: -1 });
+
+        // Check if the application version has changed since the session was validated
+        if (session && session.appVersion && app.version && session.appVersion !== app.version) {
+            console.log(`[SECURITY] Outdated client version detected during heartbeat for key: ${licenceKey} (Client: ${session.appVersion}, Server: ${app.version})`);
+            return res.status(200).json({ 
+                status: true, 
+                active: false, 
+                currentStatus: "killed", 
+                customMessage: `Update required. The application version has changed to ${app.version}.`
+            });
+        }
 
         if (session && session.sessionToken) {
             // This session was created with a token — must be validated
