@@ -17,16 +17,36 @@ if (!cached) {
 }
 
 export default async function connectDB() {
-  if (cached.conn) {
+  // If readyState is 1 (connected), we are good to reuse
+  if (mongoose.connection.readyState === 1) {
+    cached.conn = mongoose;
     return cached.conn;
   }
 
-  if (!cached.promise) {
-    const opts = {
-      bufferCommands: false, // Disable mongoose buffering to fail fast if connection fails
-      serverSelectionTimeoutMS: 5000, // Fail fast (5 seconds) instead of waiting 30 seconds
-    };
+  // If readyState is 2 (connecting), await the existing promise
+  if (mongoose.connection.readyState === 2 && cached.promise) {
+    try {
+      cached.conn = await cached.promise;
+      return cached.conn;
+    } catch (e) {
+      cached.promise = null;
+      throw e;
+    }
+  }
 
+  // If disconnected or disconnecting, clear cache and establish a fresh connection
+  cached.conn = null;
+  cached.promise = null;
+
+  const opts = {
+    bufferCommands: false, // Disable mongoose buffering to fail fast if connection fails
+    serverSelectionTimeoutMS: 5000, // Fail fast (5 seconds) instead of waiting 30 seconds
+  };
+
+  // Configure mongoose global settings to disable command buffering
+  mongoose.set('bufferCommands', false);
+
+  if (!cached.promise) {
     console.log("Connecting to MongoDB...");
     cached.promise = mongoose.connect(MONGO_URI, opts).then((mongooseInstance) => {
       console.log("MongoDB connected successfully");
